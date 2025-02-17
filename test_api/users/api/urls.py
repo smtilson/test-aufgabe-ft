@@ -1,8 +1,11 @@
-from rest_framework.serializers import ModelSerializer
-from ..models import Store
+from django.urls import path, include
+from .views import CustomUserViewSet
+from rest_framework.routers import DefaultRouter
+from rest_framework.authtoken.views import obtain_auth_token
 
-
-class StoreSerializer(ModelSerializer):
-    class Meta:
-        model = Store
-        fields = "__all__"
+router = DefaultRouter()
+router.register(r"users", CustomUserViewSet)
+urlpatterns = [
+    path("", include(router.urls)),
+    path("login/", obtain_auth_token, name="login"),
+]
