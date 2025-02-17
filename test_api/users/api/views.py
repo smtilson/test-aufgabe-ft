@@ -16,10 +16,6 @@ class CustomUserViewSet(ModelViewSet):
     serializer_class = CustomUserSerializer
 
 
-def get_token(request):
-    return request.user.auth_token
-
-
 @api_view(["POST"])
 def register(request):
     serializer = CustomUserSerializer(data=request.data)
@@ -27,3 +23,13 @@ def register(request):
         serializer.save()
         return Response(serializer.data)
     return Response(serializer.errors)
+
+
+@api_view(["POST"])
+def login(request):
+    email = request.data.get("email")
+    password = request.data.get("password")
+    user = CustomUser.objects.filter(email=email).first()
+    if user is not None and user.check_password(password):
+        token = user.auth_token
+        return Response({"token": token.key})
