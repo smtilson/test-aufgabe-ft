@@ -26,7 +26,7 @@ Please add documentation and also a simple readme how to execute the code.
 ### Clarification Questions and Answers
 Questions:
 1. I should not be using the features of  the Django rest framework
-other than for authentification, correct?
+other than for authentication, correct?
 2. Should stores be tied to a particular user? That is, in order to
 modify a store, is it sufficient for the user to just be
 authenticated, or should they only be able to modify stores that they
