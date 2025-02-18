@@ -36,4 +36,4 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     @property
     def auth_token(self):
         token, _ = Token.objects.get_or_create(user=self)
-        return token.key
+        return token
