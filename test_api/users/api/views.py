@@ -75,3 +75,6 @@ class LoginView(APIView):
             "Send a POST request with email and password to login and receive a token."
         )
         return Response({"message": msg})
+
+
+# should there be a view for a owner to create a employee?
