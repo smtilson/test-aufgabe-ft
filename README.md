@@ -48,8 +48,10 @@ At Foodtracks each of our customers has their own DB.
 3. / 4. No, no JS / Html frontend is necessary per se. Django already has its own possibilities to show the DB information over the requested APIs.
 
 ## Bugs
-- Wher trying to make migrations, I got error: fields.E304. This was due to the similar field names in the AbstractBaseUser model I am inheriting from.
+- When trying to make migrations, I got error: fields.E304. This was due to the similar field names in the AbstractBaseUser model I am inheriting from.
  - Fix: Override the field and change the related name attribute.
+- Error with field named _state. Led to error regarding string not having a certain attribute. I guess _state is a reserved term in Django ro Django Rest Framework.
+ - Fix: Rename the field to state_abbrv.
 
 ## References
 ### AI support
