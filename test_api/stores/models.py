@@ -4,7 +4,9 @@ from django.db import models
 # Create your models here.
 class Store(models.Model):
     name = models.CharField(max_length=255)
-    owner = models.CharField(max_length=255)
+    owner = models.ForeignKey(
+        "users.CustomUser", on_delete=models.CASCADE, related_name="owned_stores"
+    )
     managers = models.ManyToManyField("users.CustomUser", related_name="managed_stores")
     address = models.CharField(max_length=255)
     city = models.CharField(max_length=255)

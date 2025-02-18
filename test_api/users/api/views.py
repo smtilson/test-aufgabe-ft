@@ -3,13 +3,8 @@ from .serializers import CustomUserSerializer, SignUpSerializer, LoginSerializer
 from rest_framework import status
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.views import APIView
-from rest_framework.generics import CreateAPIView, GenericAPIView
+from rest_framework.generics import CreateAPIView
 from rest_framework.response import Response
-from rest_framework.decorators import (
-    api_view,
-    permission_classes,
-    authentication_classes,
-)
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.authtoken.models import Token
 
@@ -17,6 +12,8 @@ from django.contrib.auth import authenticate
 
 
 class CustomUserViewSet(ModelViewSet):
+    # remove when not debugging.
+    # permission_classes = [IsAuthenticated]
     queryset = CustomUser.objects.all()
     serializer_class = CustomUserSerializer
 
@@ -27,29 +24,22 @@ class SignupView(CreateAPIView):
     permission_classes = [AllowAny]
 
     def perform_create(self, serializer):
-        print("performm_create called")
         user = serializer.save()
         token, _ = Token.objects.get_or_create(user=user)
-        user.token = token.key
+        return token.key
 
-    def to_representation(self, instance):
-        """Override to include token in the response."""
-        data = super().to_representation(instance)
-        data["token"] = instance.token  # Add token to the serialized data
-        return data
-
-    """
     def create(self, request, *args, **kwargs):
-        print("create called")
-        response = super().create(request, *args, **kwargs)
-        response.data = {
-            "message": "User created successfully",
-            "user": response.data,
-            "token": "token.key",
-        }
-        print("response", response.data)
-        return response
-    """
+        """Override create method to include the token in the response."""
+        # Perform the object creation (user + token)
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        # Create user and get token
+        token = self.perform_create(serializer)
+
+        # Get user_data and add token
+        user_data = serializer.data
+        user_data["token"] = token
+        return Response(user_data, status=status.HTTP_201_CREATED)
 
     def get(self, request):
         msg = (
@@ -58,27 +48,6 @@ class SignupView(CreateAPIView):
             "will be returned."
         )
         return Response({"message": msg})
-
-
-class Login1View(APIView):
-    permission_classes = [AllowAny]
-
-    def post(self, request):
-        serializer = LoginSerializer(data=request.data)
-        if serializer.is_valid():
-            email = serializer.validated_data.get("email")
-            password = serializer.validated_data.get("password")
-            user = authenticate(email=email, password=password)
-            if user:
-                return Response({"token": user.auth_token})
-            return Response(
-                {"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED
-            )
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def get(self, request):
-        """Allows DRF GUI to show the form."""
-        return Response({"message": "Send a POST request with email and password."})
 
 
 class LoginView(APIView):
@@ -101,4 +70,8 @@ class LoginView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def get(self, request):
-        return Response({"message": "Send a POST request with email and password."})
+        """Allows for API-GUI form."""
+        msg = (
+            "Send a POST request with email and password to login and receive a token."
+        )
+        return Response({"message": msg})
