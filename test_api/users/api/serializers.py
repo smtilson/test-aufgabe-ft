@@ -20,6 +20,35 @@ class CustomUserSerializer(serializers.ModelSerializer):
             "is_owner",
             "is_staff",
         ]
+        read_only_fields = [
+            "id",
+            "groups",
+            "user_permissions",
+            "is_staff",
+            "is_superuser",
+            "is_active",
+            "date_joined",
+            "last_login",
+        ]
+
+
+class SignUpSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True)
+
+    class Meta:
+        model = CustomUser
+        fields = [
+            "first_name",
+            "last_name",
+            "email",
+            "password",
+            "date_joined",
+            "last_login",
+            "is_superuser",
+            "is_manager",
+            "is_owner",
+            "is_staff",
+        ]
         # write_only_fields = ["password"]
         read_only_fields = [
             "id",
@@ -31,3 +60,8 @@ class CustomUserSerializer(serializers.ModelSerializer):
             "date_joined",
             "last_login",
         ]
+
+
+class LoginSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    password = serializers.CharField(write_only=True)
