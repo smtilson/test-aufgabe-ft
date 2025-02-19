@@ -38,12 +38,16 @@ class StoreSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         managers_data = validated_data.pop("manager_ids", [])
+        old_managers = [mng.id for mng in instance.manager_ids.all()]
+        add_managers = [mng.id for mng in managers_data if mng.id not in old_managers]
+        remove_managers = [mng.id for mng in managers_data if mng.id in old_managers]
         instance = super().update(instance, validated_data)
-        instance.manager_ids.add(*[mng.id for mng in managers_data])
+        instance.manager_ids.add(*add_managers)
+        instance.manager_ids.remove(*remove_managers)
         return instance
 
 
-class StoreDaysSerializer(serializers.ModelSerializer):
+class DaysSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(read_only=True)
     name = serializers.CharField(read_only=True)
     owner = serializers.SerializerMethodField()
@@ -77,7 +81,7 @@ class StoreDaysSerializer(serializers.ModelSerializer):
         return obj.days_open
 
 
-class StoreHoursSerializer(serializers.ModelSerializer):
+class HoursSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(read_only=True)
     name = serializers.CharField(read_only=True)
     owner = serializers.SerializerMethodField()
@@ -106,3 +110,34 @@ class StoreHoursSerializer(serializers.ModelSerializer):
 
     def get_days_of_operation(self, obj):
         return obj.days_open
+
+
+class ManagersSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(read_only=True)
+    name = serializers.CharField(read_only=True)
+    owner = serializers.SerializerMethodField()
+    managers = serializers.SerializerMethodField()
+    days_of_operation = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Store
+        fields = ["id", "name", "owner", "managers", "manager_ids", "days_of_operation"]
+
+    def get_owner(self, obj):
+        return str(obj.owner_id)
+
+    def get_managers(self, obj):
+        return [str(mng) for mng in obj.manager_ids.all()]
+
+    def get_days_of_operation(self, obj):
+        return obj.days_open
+
+    def update(self, instance, validated_data):
+        managers_data = validated_data.pop("manager_ids", [])
+        old_managers = [mng.id for mng in instance.manager_ids.all()]
+        add_managers = [mng.id for mng in managers_data if mng.id not in old_managers]
+        remove_managers = [mng.id for mng in managers_data if mng.id in old_managers]
+        instance = super().update(instance, validated_data)
+        instance.manager_ids.add(*add_managers)
+        instance.manager_ids.remove(*remove_managers)
+        return instance

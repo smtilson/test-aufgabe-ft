@@ -14,7 +14,12 @@ from rest_framework.authentication import TokenAuthentication, SessionAuthentica
 from rest_framework.response import Response
 from rest_framework import status
 from ..models import Store
-from .serializers import StoreSerializer, StoreDaysSerializer, StoreHoursSerializer
+from .serializers import (
+    StoreSerializer,
+    DaysSerializer,
+    HoursSerializer,
+    ManagersSerializer,
+)
 
 
 # protect this with superuser permissions
@@ -28,7 +33,7 @@ class StoreViewSet(ModelViewSet):
 # this should be protected by manager and owner permissions
 class StoreDaysView(GenericAPIView, List, Retrieve, Update):
     queryset = Store.objects.all()
-    serializer_class = StoreDaysSerializer
+    serializer_class = DaysSerializer
     permission_classes = [IsAuthenticated]
     authentication_classes = [TokenAuthentication, SessionAuthentication]
 
@@ -45,7 +50,24 @@ class StoreDaysView(GenericAPIView, List, Retrieve, Update):
 # this should be protected by manager and owner permissions
 class StoreHoursView(GenericAPIView, List, Retrieve, Update):
     queryset = Store.objects.all()
-    serializer_class = StoreHoursSerializer
+    serializer_class = HoursSerializer
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [TokenAuthentication, SessionAuthentication]
+
+    def get(self, request, *args, **kwargs):
+        pk = kwargs.get("pk", None)
+        if pk:
+            return self.retrieve(request, *args, **kwargs)
+        return self.list(request, *args, **kwargs)
+
+    def put(self, request, *args, **kwargs):
+        return self.update(request, *args, **kwargs)
+
+
+# protect this with owner permissions
+class StoreManagersView(GenericAPIView, List, Retrieve, Update):
+    queryset = Store.objects.all()
+    serializer_class = ManagersSerializer
     permission_classes = [IsAuthenticated]
     authentication_classes = [TokenAuthentication, SessionAuthentication]
 
