@@ -26,7 +26,7 @@ Please add documentation and also a simple readme how to execute the code.
 ### Clarification Questions and Answers
 Questions:
 1. I should not be using the features of  the Django rest framework
-other than for authentification, correct?
+other than for authentication, correct?
 2. Should stores be tied to a particular user? That is, in order to
 modify a store, is it sufficient for the user to just be
 authenticated, or should they only be able to modify stores that they
@@ -48,9 +48,15 @@ At Foodtracks each of our customers has their own DB.
 3. / 4. No, no JS / Html frontend is necessary per se. Django already has its own possibilities to show the DB information over the requested APIs.
 
 ## Bugs
-- Wher trying to make migrations, I got error: fields.E304. This was due to the similar field names in the AbstractBaseUser model I am inheriting from.
+- When trying to make migrations, I got error: fields.E304. This was due to the similar field names in the AbstractBaseUser model I am inheriting from.
  - Fix: Override the field and change the related name attribute.
-
+- Error with field named _state. Led to error regarding string not having a certain attribute. I guess _state is a reserved term in Django ro Django Rest Framework.
+ - Fix: Rename the field to state_abbrv.
+- Browsable API: when adding a day to the many to many open_days field, it replaces the day completely instead of adding it.
+- Passowrd not being hashed wia the CustomUserViewSet
+ - Fix: Use the set_password and create_user methods in the relevant serializer.
+- Not adding managers properly via rest form.
+ - Fix: Overwrite update method of relevant serializer.
 ## References
 ### AI support
 - [ChatGPT](https://chat.openai.com/)
