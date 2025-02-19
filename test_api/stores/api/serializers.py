@@ -3,18 +3,20 @@ from ..models import Store
 
 
 class StoreSerializer(serializers.ModelSerializer):
-    open_days = serializers.SerializerMethodField()
-    owner = serializers.SerializerMethodField()
+    # open_days = serializers.PrimaryKeyRelatedField()
+    open_days_display = serializers.SerializerMethodField()
+    # owner = serializers.PrimaryKeyRelatedField()
+    owner_display = serializers.SerializerMethodField()
 
     class Meta:
         model = Store
         fields = "__all__"
         include = ["owner", "open_days"]
 
-    def get_open_days(self, obj):
+    def get_open_days_display(self, obj):
         return obj.days_open
 
-    def get_owner(self, obj):
+    def get_owner_display(self, obj):
         return (
             obj.owner.first_name
             + " "

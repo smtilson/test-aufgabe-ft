@@ -76,6 +76,5 @@ class Day(models.Model):
             Day.objects.get_or_create(day=day)
         return Day.objects.all()
 
-    @property
-    def name(self):
-        return DAYS_OF_WEEK[self.day]
+    def __str__(self):
+        return DAYS_OF_WEEK[self.abbrv]

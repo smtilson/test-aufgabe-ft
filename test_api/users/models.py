@@ -37,3 +37,6 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     def auth_token(self):
         token, _ = Token.objects.get_or_create(user=self)
         return token
+
+    def __str__(self):
+        return self.name + " (id: " + str(self.id) + ")"
