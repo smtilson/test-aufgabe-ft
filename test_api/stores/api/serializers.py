@@ -38,11 +38,9 @@ class StoreSerializer(serializers.ModelSerializer):
         )
 
     def update(self, instance, validated_data):
-        print("called update in serializer")
-        print(validated_data)
-        # managers_data = validated_data.pop("managers", [])
+        managers_data = validated_data.pop("managers", [])
         instance = super().update(instance, validated_data)
-        # instance.managers.set(managers_data)
+        instance.managers.add(*[mng.id for mng in managers_data])
         return instance
 
 

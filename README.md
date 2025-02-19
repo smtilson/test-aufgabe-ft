@@ -56,6 +56,7 @@ At Foodtracks each of our customers has their own DB.
 - Passowrd not being hashed wia the CustomUserViewSet
  - Fix: Use the set_password and create_user methods in the relevant serializer.
 - Not adding managers properly via rest form.
+ - Fix: Overwrite update method of relevant serializer.
 ## References
 ### AI support
 - [ChatGPT](https://chat.openai.com/)
