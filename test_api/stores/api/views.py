@@ -1,19 +1,61 @@
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.views import APIView
+from rest_framework.generics import GenericAPIView
+from rest_framework.mixins import (
+    RetrieveModelMixin as Retrieve,
+    ListModelMixin as List,
+    UpdateModelMixin as Update,
+    DestroyModelMixin as Destroy,
+    CreateModelMixin as Create,
+)
+
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.authentication import TokenAuthentication, SessionAuthentication
 from rest_framework.response import Response
 from rest_framework import status
 from ..models import Store
-from .serializers import StoreSerializer, OwnerStoreSerializer
+from .serializers import StoreSerializer, StoreDaysSerializer
 
 
 # protect this with superuser permissions
 class StoreViewSet(ModelViewSet):
     queryset = Store.objects.all()
     serializer_class = StoreSerializer
-    authentication_classes = [TokenAuthentication, SessionAuthentication]
     permission_classes = [IsAuthenticated]
+    authentication_classes = [TokenAuthentication, SessionAuthentication]
+
+
+# this should be protected by manager and owner permissions
+class StoreDaysView(GenericAPIView, List, Retrieve, Update):
+    queryset = Store.objects.all()
+    serializer_class = StoreDaysSerializer
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [TokenAuthentication, SessionAuthentication]
+
+    def get(self, request, *args, **kwargs):
+        pk = kwargs.get("pk", None)
+        if pk:
+            return self.retrieve(request, *args, **kwargs)
+        return self.list(request, *args, **kwargs)
+
+    def put(self, request, *args, **kwargs):
+        return self.update(request, *args, **kwargs)
+
+
+class StoreHoursView(GenericAPIView, List, Retrieve, Update):
+    queryset = Store.objects.all()
+    # serializer_class = StoreHoursSerializer
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [TokenAuthentication, SessionAuthentication]
+
+    def get(self, request, *args, **kwargs):
+        pk = kwargs.get("pk", None)
+        if pk:
+            return self.retrieve(request, *args, **kwargs)
+        return self.list(request, *args, **kwargs)
+
+    def put(self, request, *args, **kwargs):
+        return self.update(request, *args, **kwargs)
 
 
 # protect this with manager permissions
@@ -40,13 +82,3 @@ class OwnerView(APIView):
         stores = user.owned_stores.all()
         serializer = StoreSerializer(stores, many=True)
         return Response(serializer.data)
-
-
-class OwnerViewSet(ModelViewSet):
-    serializer_class = OwnerStoreSerializer
-    # permission_classes = [IsAuthenticated]
-    # authentication_classes = [TokenAuthentication, SessionAuthentication]
-
-    def get_queryset(self):
-        user = self.request.user
-        return Store.objects.filter(owner=user)

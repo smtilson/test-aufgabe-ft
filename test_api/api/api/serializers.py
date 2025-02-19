@@ -10,9 +10,10 @@ class PackageSerializer(serializers.ModelSerializer):
 
 class OrderSerializer(serializers.ModelSerializer):
     # To manage the ManyToMany relationship
-    package = serializers.PrimaryKeyRelatedField(
-        queryset=Package.objects.all(), many=True
-    )
+    # package = serializers.PrimaryKeyRelatedField(
+    #   queryset=Package.objects.all(), many=True
+    # )
+    package = serializers.StringRelatedField(many=True)
 
     class Meta:
         model = Order

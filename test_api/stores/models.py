@@ -26,10 +26,10 @@ class Store(models.Model):
     }
 
     name = models.CharField(max_length=255)
-    owner = models.ForeignKey(
+    owner_id = models.ForeignKey(
         CustomUser, on_delete=models.CASCADE, related_name="owned_stores"
     )
-    managers = models.ManyToManyField(
+    manager_ids = models.ManyToManyField(
         CustomUser, related_name="managed_stores", blank=True
     )
     address = models.CharField(max_length=255)
@@ -59,6 +59,10 @@ class Store(models.Model):
     @property
     def days_open(self):
         return str([day.capitalize() for day in DAYS_OF_WEEK if getattr(self, day)])
+
+    @property
+    def day_data(self):
+        return {day: getattr(self, day) for day in DAYS_OF_WEEK}
 
     # transfer ownership method?
 
