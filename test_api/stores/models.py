@@ -4,6 +4,16 @@ from users.models import CustomUser
 
 # Create your models here.
 
+DAYS_OF_WEEK = [
+    "montag",
+    "dienstag",
+    "mittwoch",
+    "donnerstag",
+    "freitag",
+    "samstag",
+    "sonntag",
+]
+
 
 class Store(models.Model):
     STATES = {
@@ -43,8 +53,8 @@ class Store(models.Model):
     freitag = models.BooleanField(default=False)
     samstag = models.BooleanField(default=False)
     sonntag = models.BooleanField(default=False)
-    opening_time = models.TimeField()
-    closing_time = models.TimeField()
+    opening_time = models.TimeField(default="07:00:00")
+    closing_time = models.TimeField(default="17:00:00")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -65,14 +75,3 @@ class Store(models.Model):
         return {day: getattr(self, day) for day in DAYS_OF_WEEK}
 
     # transfer ownership method?
-
-
-DAYS_OF_WEEK = [
-    "montag",
-    "dienstag",
-    "mittwoch",
-    "donnerstag",
-    "freitag",
-    "samstag",
-    "sonntag",
-]

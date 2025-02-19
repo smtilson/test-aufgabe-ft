@@ -47,6 +47,7 @@ class StoreDaysSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(read_only=True)
     name = serializers.CharField(read_only=True)
     owner = serializers.SerializerMethodField()
+    managers = serializers.SerializerMethodField()
     days_of_operation = serializers.SerializerMethodField()
 
     class Meta:
@@ -55,6 +56,7 @@ class StoreDaysSerializer(serializers.ModelSerializer):
             "id",
             "name",
             "owner",
+            "managers",
             "days_of_operation",
             "montag",
             "dienstag",
@@ -68,13 +70,39 @@ class StoreDaysSerializer(serializers.ModelSerializer):
     def get_owner(self, obj):
         return str(obj.owner_id)
 
+    def get_managers(self, obj):
+        return [str(mng) for mng in obj.manager_ids.all()]
+
     def get_days_of_operation(self, obj):
         return obj.days_open
 
 
-"""
-class StoreHoursSerializer(serializers.Serializer):
-    weekday = serializers.ChoiceField(choices=Store.DAYS_OF_WEEK.items())
-    open_time = serializers.ModelSerializer.TimeField()
-    close_time = serializers.ModelSerializer.TimeField()
-    """
+class StoreHoursSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(read_only=True)
+    name = serializers.CharField(read_only=True)
+    owner = serializers.SerializerMethodField()
+    managers = serializers.SerializerMethodField()
+    days_of_operation = serializers.SerializerMethodField()
+    # open_time = serializers.ModelSerializer.TimeField()
+    # close_time = serializers.ModelSerializer.TimeField()
+
+    class Meta:
+        model = Store
+        fields = [
+            "id",
+            "name",
+            "owner",
+            "managers",
+            "days_of_operation",
+            "opening_time",
+            "closing_time",
+        ]
+
+    def get_owner(self, obj):
+        return str(obj.owner_id)
+
+    def get_managers(self, obj):
+        return [str(mng) for mng in obj.manager_ids.all()]
+
+    def get_days_of_operation(self, obj):
+        return obj.days_open

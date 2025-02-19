@@ -1,4 +1,4 @@
-from .views import StoreViewSet, ManagerView, StoreDaysView, OwnerView
+from .views import StoreViewSet, ManagerView, StoreDaysView, OwnerView, StoreHoursView
 from rest_framework.routers import DefaultRouter
 from django.urls import path, include
 
@@ -10,4 +10,5 @@ urlpatterns = [
     path("manager/", ManagerView.as_view()),
     path("owner/", OwnerView.as_view()),
     path("stores/<int:pk>/days/", StoreDaysView.as_view()),
+    path("stores/<int:pk>/hours/", StoreHoursView.as_view()),
 ]

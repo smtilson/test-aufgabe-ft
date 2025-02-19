@@ -14,7 +14,7 @@ from rest_framework.authentication import TokenAuthentication, SessionAuthentica
 from rest_framework.response import Response
 from rest_framework import status
 from ..models import Store
-from .serializers import StoreSerializer, StoreDaysSerializer
+from .serializers import StoreSerializer, StoreDaysSerializer, StoreHoursSerializer
 
 
 # protect this with superuser permissions
@@ -42,9 +42,10 @@ class StoreDaysView(GenericAPIView, List, Retrieve, Update):
         return self.update(request, *args, **kwargs)
 
 
+# this should be protected by manager and owner permissions
 class StoreHoursView(GenericAPIView, List, Retrieve, Update):
     queryset = Store.objects.all()
-    # serializer_class = StoreHoursSerializer
+    serializer_class = StoreHoursSerializer
     permission_classes = [IsAuthenticated]
     authentication_classes = [TokenAuthentication, SessionAuthentication]
 
