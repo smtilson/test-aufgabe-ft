@@ -15,8 +15,6 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     first_name = models.CharField(max_length=30, blank=True)
     last_name = models.CharField(max_length=150, blank=True)
     date_joined = models.DateTimeField(auto_now_add=True)
-    is_manager = models.BooleanField(default=False)
-    is_owner = models.BooleanField(default=False)
     is_staff = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
     # groups and user_permissions are explicit so that related_name can be set to prevent an error.
@@ -41,3 +39,11 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return self.name + " (id: " + str(self.id) + ")"
+
+    @property
+    def is_owner(self):
+        return self.owned_stores.count() > 0
+
+    @property
+    def is_manager(self):
+        return self.managed_stores.count() > 0 or self.is_owner
