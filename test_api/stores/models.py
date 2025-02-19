@@ -51,7 +51,7 @@ class Store(models.Model):
 
     @property
     def days_open(self):
-        return [DAYS_OF_WEEK[day.day] for day in self.open_days.all()]
+        return [DAYS_OF_WEEK[day.abbrv] for day in self.open_days.all()]
 
     # transfer ownership method?
 
@@ -68,7 +68,7 @@ DAYS_OF_WEEK = {
 
 
 class Day(models.Model):
-    day = models.CharField(max_length=2, choices=DAYS_OF_WEEK.items(), unique=True)
+    abbrv = models.CharField(max_length=2, choices=DAYS_OF_WEEK.items(), unique=True)
 
     @classmethod
     def initialize_days(cls):
@@ -76,5 +76,6 @@ class Day(models.Model):
             Day.objects.get_or_create(day=day)
         return Day.objects.all()
 
-    def __str__(self):
+    @property
+    def name(self):
         return DAYS_OF_WEEK[self.day]

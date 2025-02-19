@@ -31,6 +31,14 @@ class CustomUserSerializer(serializers.ModelSerializer):
             "last_login",
         ]
 
+    def create(self, validated_data):
+        return CustomUser.objects.create_user(**validated_data)
+
+    def update(self, instance, validated_data):
+        if "password" in validated_data:
+            instance.set_password(validated_data.pop("password"))
+        return super().update(instance, validated_data)
+
 
 class SignUpSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
