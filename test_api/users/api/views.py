@@ -23,11 +23,13 @@ class SignupView(CreateAPIView):
     serializer_class = SignUpSerializer
     permission_classes = [AllowAny]
 
+    # remove after tests are written
     def perform_create(self, serializer):
         user = serializer.save()
         token, _ = Token.objects.get_or_create(user=user)
         return token.key
 
+    # maybe remove after tests are written
     def create(self, request, *args, **kwargs):
         """Override create method to include the token in the response."""
         # Perform the object creation (user + token)
