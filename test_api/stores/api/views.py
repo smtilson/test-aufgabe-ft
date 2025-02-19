@@ -29,6 +29,18 @@ class StoreViewSet(ModelViewSet):
     permission_classes = [IsAuthenticated]
     authentication_classes = [TokenAuthentication, SessionAuthentication]
 
+    def retrieve(self, request, *args, **kwargs):
+        response = super().retrieve(request, *args, **kwargs)
+        msg = "Modify all aspects of a store by filling the relevant field."
+        response.data["message"] = msg
+        return response
+
+    def list(self, request, *args, **kwargs):
+        response = super().list(request, *args, **kwargs)
+        msg = "Create a store by filling the relevant fields."
+        response.data["message"] = msg
+        return response
+
 
 # this should be protected by manager and owner permissions
 class StoreDaysView(GenericAPIView, List, Retrieve, Update):
@@ -40,11 +52,19 @@ class StoreDaysView(GenericAPIView, List, Retrieve, Update):
     def get(self, request, *args, **kwargs):
         pk = kwargs.get("pk", None)
         if pk:
-            return self.retrieve(request, *args, **kwargs)
+            response = self.retrieve(request, *args, **kwargs)
+            msg = (
+                "Modify the days of operation by selecting or unselecting a given day."
+            )
+            response.data["message"] = msg
+            return response
         return self.list(request, *args, **kwargs)
 
     def put(self, request, *args, **kwargs):
-        return self.update(request, *args, **kwargs)
+        response = self.update(request, *args, **kwargs)
+        msg = "Modify the days of operation by selecting or unselecting a given day."
+        response.data["message"] = msg
+        return response
 
 
 # this should be protected by manager and owner permissions
@@ -57,11 +77,17 @@ class StoreHoursView(GenericAPIView, List, Retrieve, Update):
     def get(self, request, *args, **kwargs):
         pk = kwargs.get("pk", None)
         if pk:
-            return self.retrieve(request, *args, **kwargs)
+            response = self.retrieve(request, *args, **kwargs)
+            msg = "Modify the hours of operation using the given fields."
+            response.data["message"] = msg
+            return response
         return self.list(request, *args, **kwargs)
 
     def put(self, request, *args, **kwargs):
-        return self.update(request, *args, **kwargs)
+        response = self.update(request, *args, **kwargs)
+        msg = "Modify the hours of operation using the given fields."
+        response.data["message"] = msg
+        return response
 
 
 # protect this with owner permissions
@@ -74,11 +100,19 @@ class StoreManagersView(GenericAPIView, List, Retrieve, Update):
     def get(self, request, *args, **kwargs):
         pk = kwargs.get("pk", None)
         if pk:
-            return self.retrieve(request, *args, **kwargs)
+            response = self.retrieve(request, *args, **kwargs)
+            msg = "Modify the managers of the store by selecting a given user."
+            msg += " Selecting a user that is already a manager will remove their manager status."
+            response.data["message"] = msg
+            return response
         return self.list(request, *args, **kwargs)
 
     def put(self, request, *args, **kwargs):
-        return self.update(request, *args, **kwargs)
+        response = self.update(request, *args, **kwargs)
+        msg = "Modify the managers of the store by selecting a given user."
+        msg += " Selecting a user that is already a manager will remove their manager status."
+        response.data["message"] = msg
+        return response
 
 
 # protect this with manager permissions

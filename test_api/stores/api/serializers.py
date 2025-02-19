@@ -87,8 +87,6 @@ class HoursSerializer(serializers.ModelSerializer):
     owner = serializers.SerializerMethodField()
     managers = serializers.SerializerMethodField()
     days_of_operation = serializers.SerializerMethodField()
-    # open_time = serializers.ModelSerializer.TimeField()
-    # close_time = serializers.ModelSerializer.TimeField()
 
     class Meta:
         model = Store
