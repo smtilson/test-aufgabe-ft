@@ -16,13 +16,31 @@ class StoreViewSet(ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def update(self, request, *args, **kwargs):
+        print()
+        print("1request.data: ", request.data)
+        managers = request.data.get("managers", None)
+        managers = [int(id) for id in managers]
+        print()
+        print("2getting store")
         store = self.get_object()
+        print()
+        print()
+        print("3store.managers: ", store.managers.all())
         serializer = self.get_serializer(store, data=request.data, partial=True)
+        print("3.5 store.managers: ", store.managers.all())
         serializer.is_valid(raise_exception=True)
+        print()
+        print("3.75 store.managers: ", store.managers)
+        print()
+        print("4request.data: ", request.data)
+        managers = request.data.get("managers", None)
+        print()
+        print("5managers: ", managers)
 
-        open_days = request.data.get("open_days", None)
-        if open_days:
-            store.open_days.add(*open_days)
+        for id in managers:
+            store.managers.add(managers)
+        print()
+        print("6store.managers: ", store.managers.all())
         self.perform_update(serializer)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -31,9 +49,9 @@ class StoreViewSet(ModelViewSet):
         serializer = self.get_serializer(store, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
 
-        open_days = request.data.get("open_days", None)
-        if open_days:
-            store.open_days.add(*open_days)
+        managers = request.data.get("managers", None)
+        if managers:
+            store.open_days.add(*managers)
 
         self.perform_update(serializer)
 

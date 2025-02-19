@@ -7,7 +7,9 @@ class StoreSerializer(serializers.ModelSerializer):
     open_days = serializers.SerializerMethodField()
     # owner = serializers.PrimaryKeyRelatedField(queryset=CustomUser.objects need to filter this?  many=False, read_only=False)
     owner_display = serializers.SerializerMethodField()
-    managers = serializers.StringRelatedField(many=True)
+    managers = serializers.PrimaryKeyRelatedField(
+        queryset=CustomUser.objects.all(), many=True, read_only=False
+    )
 
     class Meta:
         model = Store
@@ -34,6 +36,14 @@ class StoreSerializer(serializers.ModelSerializer):
             + " id: "
             + str(obj.owner.id)
         )
+
+    def update(self, instance, validated_data):
+        print("called update in serializer")
+        print(validated_data)
+        # managers_data = validated_data.pop("managers", [])
+        instance = super().update(instance, validated_data)
+        # instance.managers.set(managers_data)
+        return instance
 
 
 class OwnerStoreSerializer(serializers.ModelSerializer):
