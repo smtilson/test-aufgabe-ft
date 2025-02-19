@@ -35,7 +35,13 @@ class Store(models.Model):
     city = models.CharField(max_length=255)
     state_abbrv = models.CharField(max_length=2, choices=STATES.items())
     plz = models.CharField(max_length=5)
-    open_days = models.ManyToManyField("Day", related_name="stores", blank=True)
+    montag = models.BooleanField(default=False)
+    dienstag = models.BooleanField(default=False)
+    mittwoch = models.BooleanField(default=False)
+    donnerstag = models.BooleanField(default=False)
+    freitag = models.BooleanField(default=False)
+    samstag = models.BooleanField(default=False)
+    sonntag = models.BooleanField(default=False)
     opening_time = models.TimeField()
     closing_time = models.TimeField()
     created_at = models.DateTimeField(auto_now_add=True)
@@ -51,30 +57,17 @@ class Store(models.Model):
 
     @property
     def days_open(self):
-        return [DAYS_OF_WEEK[day.abbrv] for day in self.open_days.all()]
+        return str([day.capitalize() for day in DAYS_OF_WEEK if getattr(self, day)])
 
     # transfer ownership method?
 
 
-DAYS_OF_WEEK = {
-    "Mo": "Montag",
-    "Di": "Dienstag",
-    "Mi": "Mittwoch",
-    "Do": "Donnerstag",
-    "Fr": "Freitag",
-    "Sa": "Samstag",
-    "So": "Sonntag",
-}
-
-
-class Day(models.Model):
-    abbrv = models.CharField(max_length=2, choices=DAYS_OF_WEEK.items(), unique=True)
-
-    @classmethod
-    def initialize_days(cls):
-        for day in DAYS_OF_WEEK.keys():
-            Day.objects.get_or_create(day=day)
-        return Day.objects.all()
-
-    def __str__(self):
-        return DAYS_OF_WEEK[self.abbrv]
+DAYS_OF_WEEK = [
+    "montag",
+    "dienstag",
+    "mittwoch",
+    "donnerstag",
+    "freitag",
+    "samstag",
+    "sonntag",
+]

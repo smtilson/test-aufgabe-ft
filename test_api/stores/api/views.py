@@ -3,6 +3,7 @@ from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.authentication import TokenAuthentication, SessionAuthentication
 from rest_framework.response import Response
+from rest_framework import status
 from ..models import Store
 from .serializers import StoreSerializer, OwnerStoreSerializer
 
@@ -13,6 +14,30 @@ class StoreViewSet(ModelViewSet):
     serializer_class = StoreSerializer
     authentication_classes = [TokenAuthentication, SessionAuthentication]
     permission_classes = [IsAuthenticated]
+
+    def update(self, request, *args, **kwargs):
+        store = self.get_object()
+        serializer = self.get_serializer(store, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+
+        open_days = request.data.get("open_days", None)
+        if open_days:
+            store.open_days.add(*open_days)
+        self.perform_update(serializer)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def partial_update(self, request, *args, **kwargs):
+        store = self.get_object()
+        serializer = self.get_serializer(store, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+
+        open_days = request.data.get("open_days", None)
+        if open_days:
+            store.open_days.add(*open_days)
+
+        self.perform_update(serializer)
+
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 # protect this with manager permissions

@@ -1,19 +1,29 @@
 from rest_framework import serializers
 from ..models import Store
+from users.models import CustomUser
 
 
 class StoreSerializer(serializers.ModelSerializer):
-    # open_days = serializers.PrimaryKeyRelatedField()
-    open_days_display = serializers.SerializerMethodField()
-    # owner = serializers.PrimaryKeyRelatedField()
+    open_days = serializers.SerializerMethodField()
+    # owner = serializers.PrimaryKeyRelatedField(queryset=CustomUser.objects need to filter this?  many=False, read_only=False)
     owner_display = serializers.SerializerMethodField()
+    managers = serializers.StringRelatedField(many=True)
 
     class Meta:
         model = Store
-        fields = "__all__"
-        include = ["owner", "open_days"]
+        include = ["open_days"]
+        exclude = [
+            "owner",
+            "montag",
+            "dienstag",
+            "mittwoch",
+            "donnerstag",
+            "freitag",
+            "samstag",
+            "sonntag",
+        ]
 
-    def get_open_days_display(self, obj):
+    def get_open_days(self, obj):
         return obj.days_open
 
     def get_owner_display(self, obj):
