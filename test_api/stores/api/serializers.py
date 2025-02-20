@@ -4,7 +4,7 @@ from users.models import CustomUser
 
 
 class StoreSerializer(serializers.ModelSerializer):
-    open_days = serializers.SerializerMethodField()
+    days_of_operation = serializers.SerializerMethodField()
     owner = serializers.SerializerMethodField()
     manager_ids = serializers.PrimaryKeyRelatedField(
         queryset=CustomUser.objects.all(), many=True, read_only=False, required=False
@@ -13,7 +13,7 @@ class StoreSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Store
-        include = ["open_days"]
+        include = ["days_of_operation"]
         fields = "__all__"
         write_only_fields = [
             "manger_ids",
@@ -26,7 +26,7 @@ class StoreSerializer(serializers.ModelSerializer):
             "sonntag",
         ]
 
-    def get_open_days(self, obj):
+    def get_days_of_operation(self, obj):
         return obj.days_open
 
     def get_owner(self, obj):

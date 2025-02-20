@@ -40,11 +40,31 @@ class BaseTestCase(TestCase):
     def setUp(self):
         self.owner = User.objects.create_user(**OWNER_DATA)
         self.manager = User.objects.create_user(**MANAGER_DATA)
-        self.store = Store.objects.create(owner_id=self.owner, **STORE_DATA)
+        self.days_list = [
+            "montag",
+            "dienstag",
+            "mittwoch",
+            "donnerstag",
+            "freitag",
+            "samstag",
+            "sonntag",
+        ]
+        self.initial_days = {
+            "montag": True,
+            "dienstag": True,
+            "mittwoch": True,
+            "donnerstag": False,
+            "freitag": False,
+            "samstag": False,
+            "sonntag": False,
+        }
+        self.store = Store.objects.create(
+            owner_id=self.owner, **STORE_DATA, **self.initial_days
+        )
         self.store.manager_ids.add(self.manager)
 
 
-class StoreSerializerTest(TestCase):
+class StoreSerializerTest(BaseTestCase):
     def setUp(self):
         super().setUp()
         self.serializer = StoreSerializer(instance=self.store)
@@ -62,7 +82,7 @@ class StoreSerializerTest(TestCase):
             "plz",
             "opening_time",
             "closing_time",
-            "open_days",
+            "days_of_operation",
             "updated_at",
             "created_at",
             "manager_ids",
@@ -144,6 +164,10 @@ class StoreSerializerTest(TestCase):
         self.assertIn("plz", serializer.errors)
         self.assertIn("exactly 5 digits", str(serializer.errors["plz"][0]))
 
+    def test_initial_days(self):
+        for day in self.initial_days:
+            self.assertEqual(getattr(self.store, day), self.initial_days[day])
+
     def test_optional_fields(self):
         required_data = {
             "name": "Test Store",
@@ -164,12 +188,12 @@ class StoreSerializerTest(TestCase):
         for field in serializer.errors:
             self.assertIn(field, required_fields)
 
-    def test_open_days_field(self):
-        self.store.montag = True
-        self.store.mittwoch = True
-        self.store.save()
+    def test_days_of_operation_field(self):
         serializer = StoreSerializer(instance=self.store)
-        self.assertEqual(serializer.data["open_days"], str(["Montag", "Mittwoch"]))
+        self.assertEqual(
+            serializer.data["days_of_operation"],
+            str(["Montag", "Dienstag", "Mittwoch"]),
+        )
 
     def test_owner_field(self):
         self.assertEqual(self.serializer.data["owner"], str(self.owner))
@@ -253,7 +277,62 @@ class StoreSerializerTest(TestCase):
         self.assertIn("closing_time", serializer.errors)
 
 
-class DaysSerializerTest(TestCase):
+class DaysSerializerTest(BaseTestCase):
     def setUp(self):
         super().setUp()
+        self.new_days = {
+            "montag": False,
+            "dienstag": True,
+            "mittwoch": False,
+            "donnerstag": True,
+            "freitag": False,
+            "samstag": False,
+            "sonntag": False,
+        }
         self.serializer = DaysSerializer(instance=self.store)
+
+    def test_update_days(self):
+        serializer = DaysSerializer(self.store, data=self.new_days, partial=True)
+        self.assertTrue(serializer.is_valid())
+        updated_store = serializer.save()
+
+        # Check updated days are True
+        for day in self.days_list:
+            self.assertEqual(getattr(updated_store, day), self.new_days[day])
+
+    def test_days_of_operation(self):
+        serializer = DaysSerializer(self.store)
+        expected_days = [
+            day.capitalize() for day, value in self.initial_days.items() if value
+        ]
+        self.assertEqual(serializer.data["days_of_operation"], str(expected_days))
+
+    def test_contains_expected_fields(self):
+        data = self.serializer.data
+        expected_fields = {
+            "id",
+            "name",
+            "owner",
+            "managers",
+            "days_of_operation",
+            "montag",
+            "dienstag",
+            "mittwoch",
+            "donnerstag",
+            "freitag",
+            "samstag",
+            "sonntag",
+        }
+        self.assertEqual(set(data.keys()), expected_fields)
+
+    def test_read_only_fields(self):
+        data = {
+            "id": 999,
+            "name": "New Name",
+        }
+        serializer = DaysSerializer(self.store, data=data, partial=True)
+        self.assertTrue(serializer.is_valid())
+        updated_store = serializer.save()
+
+        for key, value in data.items():
+            self.assertNotEqual(getattr(updated_store, key), value)
