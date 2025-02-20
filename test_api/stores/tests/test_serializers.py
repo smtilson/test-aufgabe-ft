@@ -386,6 +386,7 @@ class HoursSerializerTest(BaseTestCase):
             "managers",
             "opening_time",
             "closing_time",
+            "days_of_operation",
         }
         self.assertEqual(set(data.keys()), expected_fields)
 
@@ -393,4 +394,51 @@ class HoursSerializerTest(BaseTestCase):
 class ManagersSerializerTest(BaseTestCase):
     def setUp(self):
         super().setUp()
+        new_manager_data = {key: value + "1" for key, value in MANAGER_DATA.items()}
+        self.new_manager = User.objects.create_user(**new_manager_data)
         self.serializer = ManagersSerializer(instance=self.store)
+
+    def test_initial_managers(self):
+        self.assertEqual(self.store.manager_ids.count(), 1)
+        self.assertIn(self.manager, self.store.manager_ids.all())
+
+    def test_add_manager(self):
+        data = {"manager_ids": [self.new_manager.id]}
+        serializer = ManagersSerializer(self.store, data=data, partial=True)
+        self.assertTrue(serializer.is_valid())
+        updated_store = serializer.save()
+
+        self.assertEqual(updated_store.manager_ids.count(), 2)
+        self.assertIn(self.manager, updated_store.manager_ids.all())
+        self.assertIn(self.new_manager, updated_store.manager_ids.all())
+
+    def test_remove_manager(self):
+        # Initial state verified by test_initial_managers
+        data = {"manager_ids": [self.manager.id]}
+        serializer = ManagersSerializer(self.store, data=data, partial=True)
+        self.assertTrue(serializer.is_valid())
+        updated_store = serializer.save()
+
+        self.assertEqual(updated_store.manager_ids.count(), 0)
+        self.assertNotIn(self.manager, updated_store.manager_ids.all())
+
+    def test_read_only_fields(self):
+        data = {"id": 999, "name": "New Name"}
+        serializer = ManagersSerializer(self.store, data=data, partial=True)
+        self.assertTrue(serializer.is_valid())
+        updated_store = serializer.save()
+
+        self.assertEqual(updated_store.id, self.store.id)
+        self.assertEqual(updated_store.name, self.store.name)
+
+    def test_contains_expected_fields(self):
+        data = self.serializer.data
+        expected_fields = {
+            "id",
+            "name",
+            "owner",
+            "managers",
+            "manager_ids",
+            "days_of_operation",
+        }
+        self.assertEqual(set(data.keys()), expected_fields)
