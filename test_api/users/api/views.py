@@ -13,9 +13,27 @@ from django.contrib.auth import authenticate
 
 class CustomUserViewSet(ModelViewSet):
     # remove when not debugging.
-    # permission_classes = [IsAuthenticated]
-    queryset = CustomUser.objects.all()
+    permission_classes = [IsAuthenticated]
+    queryset = CustomUser.objects.all().order_by("id")
     serializer_class = CustomUserSerializer
+
+
+"""
+    def destroy(self, request, *args, **kwargs):
+        user = self.get_object()
+        before_count = CustomUser.objects.all().count()
+        print(f"deleting {user}.")
+        response = super().destroy(request, *args, **kwargs)
+        after_count = CustomUser.objects.all().count()
+        print("\nprinting response from overridden destroy method")
+        print(response)
+        print("printing response from overridden destroy method finished\n")
+
+        print(f"before_count: {before_count}")
+        print(f"after_count: {after_count}")
+        return response
+        return Response(status=status.HTTP_204_NO_CONTENT)
+"""
 
 
 class SignupView(CreateAPIView):

@@ -57,6 +57,8 @@ At Foodtracks each of our customers has their own DB.
  - Fix: Use the set_password and create_user methods in the relevant serializer.
 - Not adding managers properly via rest form.
  - Fix: Overwrite update method of relevant serializer.
+- Test for delete user is failing to get the right status code.
+ - Fix: Add field HTTP_ACCEPT: application/json to the client in setUp method.
 ## References
 ### AI support
 - [ChatGPT](https://chat.openai.com/)
