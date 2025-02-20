@@ -1,6 +1,7 @@
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth import authenticate
 from rest_framework import serializers
+from rest_framework.exceptions import AuthenticationFailed
 from ..models import CustomUser
 
 
@@ -89,7 +90,7 @@ class LoginSerializer(serializers.Serializer):
                 request=self.context.get("request"), email=email, password=password
             )
             if not user:
-                raise serializers.ValidationError("Invalid email or password.")
+                raise AuthenticationFailed("Invalid email or password.")
             data["user"] = user
         else:
             raise serializers.ValidationError("Both email and password are required.")

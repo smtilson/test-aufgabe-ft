@@ -84,7 +84,11 @@ class SignupViewTests(APITestCase):
     def test_successful_signup(self):
         response = self.client.post(self.url, BASE_DATA)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertNotIn("password", response.data)
+        user = User.objects.get(email=response.data["email"])
+        # check token is created and returned
         self.assertIn("token", response.data)
+        self.assertEqual(response.data["token"], user.auth_token.key)
         self.assertEqual(User.objects.count(), 1)
 
     def test_signup_with_existing_email(self):
@@ -93,31 +97,44 @@ class SignupViewTests(APITestCase):
         data["email"] = BASE_DATA["email"]
         response = self.client.post(self.url, data)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("error", str(response.data).lower())
+        self.assertIn("unique", str(response.data).lower())
         self.assertIn("email", response.data)
+        self.assertIn("with this email already exists.", response.data["email"][0])
+
+
+# not yet looked at
 
 
 class LoginViewTests(APITestCase):
     def setUp(self):
-        self.user = User.objects.create_user(
-            email="login@example.com", password="login_password"
-        )
+        self.user = User.objects.create_user(**BASE_DATA)
         self.url = reverse("login")
         self.client.credentials(HTTP_ACCEPT="application/json")
+        self.login_data = {
+            "email": BASE_DATA["email"],
+            "password": BASE_DATA["password"],
+        }
 
     def test_successful_login(self):
-        data = {"email": "login@example.com", "password": "login_password"}
-        response = self.client.post(self.url, data)
+        response = self.client.post(self.url, self.login_data)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # check correct token is returned
         self.assertIn("token", response.data)
+        self.assertEqual(response.data["token"], self.user.auth_token.key)
 
     def test_login_invalid_credentials(self):
-        data = {"email": "login@example.com", "password": "wrong_password"}
-        response = self.client.post(self.url, data)
+        invalid_data = {"email": "login@example.com", "password": "wrong_password"}
+        response = self.client.post(self.url, invalid_data)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-        self.assertIn("error", response.data)
+        self.assertIn("Invalid ", str(response.data["detail"]))
+        self.assertEqual("authentication_failed", response.data["detail"].code)
 
     def test_login_missing_fields(self):
-        data = {"email": "login@example.com"}
-        response = self.client.post(self.url, data)
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("password", response.data)
+        for field in self.login_data:
+            missing_data = {
+                key: value for key, value in self.login_data.items() if key != field
+            }
+            response = self.client.post(self.url, missing_data)
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+            self.assertIn(field, response.data)
