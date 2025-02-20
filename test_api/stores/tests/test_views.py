@@ -30,13 +30,11 @@ STORE1_DATA = {
     "city": "Test City",
     "state_abbrv": "BE",
     "plz": "12345",
-    "opening_time": "09:00:00",
-    "closing_time": "17:00:00",
 }
 STORE2_DATA = {key: value + "1" for key, value in STORE1_DATA.items()}
 STORE3_DATA = {key: value + "1" for key, value in STORE2_DATA.items()}
 
-for key in {"plz", "opening_time", "closing_time", "state_abbrv"}:
+for key in {"plz", "state_abbrv"}:
     STORE2_DATA[key] = STORE1_DATA[key]
     STORE3_DATA[key] = STORE1_DATA[key]
 
@@ -47,9 +45,39 @@ class BaseTestCase(APITestCase):
         self.owner2 = User.objects.create_user(**OWNER2_DATA)
         self.manager1 = User.objects.create_user(**MANAGER1_DATA)
         self.manager2 = User.objects.create_user(**MANAGER2_DATA)
-        self.store1 = Store.objects.create(owner_id=self.owner1, **STORE1_DATA)
-        self.store2 = Store.objects.create(owner_id=self.owner1, **STORE2_DATA)
-        self.store3 = Store.objects.create(owner_id=self.owner2, **STORE3_DATA)
+
+        self.days_list = [
+            "montag",
+            "dienstag",
+            "mittwoch",
+            "donnerstag",
+            "freitag",
+            "samstag",
+            "sonntag",
+        ]
+        self.initial_days = {
+            "montag": True,
+            "dienstag": True,
+            "mittwoch": True,
+            "donnerstag": False,
+            "freitag": False,
+            "samstag": False,
+            "sonntag": False,
+        }
+        self.times = {
+            "opening_time": "07:00:00",
+            "closing_time": "17:00:00",
+        }
+
+        self.store1 = Store.objects.create(
+            owner_id=self.owner1, **STORE1_DATA, **self.initial_days, **self.times
+        )
+        self.store2 = Store.objects.create(
+            owner_id=self.owner1, **STORE2_DATA, **self.initial_days, **self.times
+        )
+        self.store3 = Store.objects.create(
+            owner_id=self.owner2, **STORE3_DATA, **self.initial_days, **self.times
+        )
         self.store1.manager_ids.add(self.manager1)
         self.store2.manager_ids.add(self.manager2)
         self.token1, _ = Token.objects.get_or_create(user=self.owner1)
@@ -57,8 +85,8 @@ class BaseTestCase(APITestCase):
         self.token3, _ = Token.objects.get_or_create(user=self.manager1)
         self.client.credentials(
             HTTP_AUTHORIZATION=f"Token {self.token1.key}",
-            HTTP_ACCEPT="application/json",
         )
+        self.client.defaults["HTTP_ACCEPT"] = "application/json"
 
 
 # StoreViewSet tests:
@@ -274,6 +302,37 @@ class StoreViewSetTestCase(BaseTestCase):
     # def test_delete_store_by_manager(self):
     #     this should be blocked once I have permissions put in.
     # StoreDaysView tests:
+
+
+class StoreDaysViewTests(BaseTestCase):
+    def setUp(self):
+        super().setUp()
+        self.url = f"/stores/{self.store1.id}/days/"
+
+    def test_get_store_days_valid(self):
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.data["days_of_operation"], str(["Montag", "Dienstag", "Mittwoch"])
+        )  # Adjust according to actual data
+        self.assertIn("Modify the days of operation by", response.data["message"])
+
+    def test_get_store_days_invalid(self):
+        url = "/stores/invalid/days/"
+        response = self.client.get(url)
+        print(response.content)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(response.data["detail"].code, "not_found")
+
+    def test_update_store_days(self):
+        data = {"montag": True, "dienstag": False, "donnerstag": True}  # Valid data
+        response = self.client.post(self.url, data)
+        self.assertEqual(response.status_code, 200)  # or the expected status code
+        self.assertEqual(response.data["montag"], True)
+        self.assertEqual(response.data["dienstag"], False)
+        self.assertEqual(response.data["donnerstag"], True)
+        self.assertEqual(response.data["mittwoch"], True)
+        self.assertEqual(response.data["message"], "Store days updated successfully.")
 
     # Test list stores with days info
     # Test retrieve store days
