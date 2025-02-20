@@ -2,7 +2,7 @@ from django.test import TestCase
 from django.contrib.auth import get_user_model
 
 from rest_framework.authtoken.models import Token
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import ValidationError, AuthenticationFailed
 
 from ..api.serializers import CustomUserSerializer, SignUpSerializer, LoginSerializer
 
@@ -116,7 +116,6 @@ class SignUpSerializerTest(TestCase):
             self.assertIn(_, serializer.errors)
 
     def test_invalid_email(self):
-        """Test that the serializer rejects an invalid email."""
         self.data["email"] = ("not-an-email",)
         serializer = SignUpSerializer(data=self.data)
         self.assertFalse(serializer.is_valid())
@@ -154,28 +153,20 @@ class LoginSerializerTest(TestCase):
     def test_invalid_email(self):
         invalid_data = {"email": "wrong@example.com", "password": "secure_PASSWORD_123"}
         serializer = LoginSerializer(data=invalid_data)
-        self.assertFalse(serializer.is_valid())
-        self.assertIn("non_field_errors", serializer.errors)
-        print()
-        print(serializer.errors)
-        ()
-        self.assertEqual(
-            serializer.errors["non_field_errors"][0], "Invalid email or password."
-        )
-        self.assertIsNone(serializer.validated_data.get("email"))
+        with self.assertRaises(AuthenticationFailed) as e:
+            serializer.is_valid()
+        self.assertEqual(str(e.exception), "Invalid email or password.")
+        self.assertEqual(e.exception.status_code, 401)
+        self.assertEqual(e.exception.detail.code, "authentication_failed")
 
     def test_invalid_password(self):
         invalid_data = {"email": "test@example.com", "password": "wrongpassword"}
         serializer = LoginSerializer(data=invalid_data)
-        self.assertFalse(serializer.is_valid())
-        print()
-        print(serializer.errors)
-        print()
-        self.assertIn("non_field_errors", serializer.errors)
-        self.assertEqual(
-            serializer.errors["non_field_errors"][0], "Invalid email or password."
-        )
-        self.assertIsNone(serializer.validated_data.get("email"))
+        with self.assertRaises(AuthenticationFailed) as e:
+            serializer.is_valid()
+        self.assertEqual(str(e.exception), "Invalid email or password.")
+        self.assertEqual(e.exception.status_code, 401)
+        self.assertEqual(e.exception.detail.code, "authentication_failed")
 
     def test_missing_fields(self):
         for _ in self.data.keys():
