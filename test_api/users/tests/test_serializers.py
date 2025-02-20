@@ -149,20 +149,32 @@ class LoginSerializerTest(TestCase):
     def test_valid_login(self):
         serializer = LoginSerializer(data=self.data)
         self.assertTrue(serializer.is_valid(), serializer.errors)
+        self.assertEqual(serializer.validated_data["user"], self.user)
 
     def test_invalid_email(self):
         invalid_data = {"email": "wrong@example.com", "password": "secure_PASSWORD_123"}
         serializer = LoginSerializer(data=invalid_data)
-        self.assertTrue(serializer.is_valid(), serializer.errors)
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("non_field_errors", serializer.errors)
+        print()
+        print(serializer.errors)
+        ()
+        self.assertEqual(
+            serializer.errors["non_field_errors"][0], "Invalid email or password."
+        )
         self.assertIsNone(serializer.validated_data.get("email"))
 
     def test_invalid_password(self):
         invalid_data = {"email": "test@example.com", "password": "wrongpassword"}
         serializer = LoginSerializer(data=invalid_data)
-        self.assertTrue(serializer.is_valid(), serializer.errors)
+        self.assertFalse(serializer.is_valid())
+        print()
         print(serializer.errors)
-        self.assertIn("password", serializer.errors)
-        self.assertNotIn("email", serializer.validated_data)
+        print()
+        self.assertIn("non_field_errors", serializer.errors)
+        self.assertEqual(
+            serializer.errors["non_field_errors"][0], "Invalid email or password."
+        )
         self.assertIsNone(serializer.validated_data.get("email"))
 
     def test_missing_fields(self):
