@@ -34,11 +34,11 @@ STORE1_DATA = {
     "closing_time": "17:00:00",
 }
 STORE2_DATA = {key: value + "1" for key, value in STORE1_DATA.items()}
-STORE2_DATA["opening_time"] = "08:00:01"
-STORE2_DATA["closing_time"] = "18:00:01"
 STORE3_DATA = {key: value + "1" for key, value in STORE2_DATA.items()}
-STORE3_DATA["opening_time"] = "08:00:02"
-STORE3_DATA["closing_time"] = "19:00:01"
+
+for key in {"plz", "opening_time", "closing_time", "state_abbrv"}:
+    STORE2_DATA[key] = STORE1_DATA[key]
+    STORE3_DATA[key] = STORE1_DATA[key]
 
 
 class BaseTestCase(APITestCase):
@@ -69,6 +69,16 @@ class StoreViewSetTestCase(BaseTestCase):
         # self.store1_url = reverse("store-detail", args=[self.store1.id])
         # self.store2_url = reverse("store-detail", args=[self.store2.id])
 
+    def test_unauthenticated_access(self):
+        self.client.credentials()  # No auth header
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_forbidden_access(self):
+        self.client.credentials(HTTP_AUTHORIZATION="Token invalidtoken")
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
     def test_list_stores(self):
         # Test owner1 sees their stores
         response = self.client.get(self.url)
@@ -86,38 +96,198 @@ class StoreViewSetTestCase(BaseTestCase):
         self.assertEqual(len(response.data["results"]), 1)
         self.assertEqual(response.data["results"][0]["id"], self.store3.id)
 
-        # Test manager1 sees no stores
+        # Test manager1 sees their store
         self.client.credentials(
             HTTP_AUTHORIZATION=f"Token {self.token3.key}",
         )
 
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data["results"]), 0)
+        self.assertEqual(len(response.data["results"]), 1)
+        self.assertEqual(response.data["results"][0]["id"], self.store1.id)
+        self.assertEqual(
+            response.data["message"], "Create a store by filling the relevant fields."
+        )
 
+    def test_list_stores_pagination(self):
+        response = self.client.get(self.url, {"page": 1, "page_size": 2})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data["results"]), 2)
 
-# Test create store
+    def test_pagination_out_of_bounds(self):
+        # Request a page that doesn't exist
+        response = self.client.get(self.url + "?page=999&page_size=2")
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
+        # Check error message
+        self.assertEqual(response.data["detail"].code, "not_found")
 
-# Test retrieve store
-# Test update store
-# Test delete store
-# Test custom messages in responses
-# StoreDaysView tests:
+    # Test create store
+    def test_create_store(self):
+        new_store_data = {key: value + "1" for key, value in STORE3_DATA.items()}
+        new_store_data["state_abbrv"] = "HH"
+        new_store_data["opening_time"] = "08:00:02"
+        new_store_data["closing_time"] = "19:00:01"
+        new_store_data["plz"] = "12115"
+        new_store_data["owner_id"] = self.owner1.id
+        new_store_data["manager_ids"] = [self.manager1.id]
 
-# Test list stores with days info
-# Test retrieve store days
-# Test update store days
-# Test custom messages in responses
-# StoreHoursView tests:
+        # Test owner can create store
+        response = self.client.post(self.url, new_store_data)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(Store.objects.count(), 4)
+        # Verify store data
+        created_store = Store.objects.get(id=response.data["id"])
+        for key, value in new_store_data.items():
+            if key in {"manager_ids", "owner_id", "closing_time", "opening_time"}:
+                continue
+            self.assertEqual(getattr(created_store, key), value)
+        self.assertIn(self.manager1, created_store.manager_ids.all())
+        self.assertEqual(created_store.owner_id, self.owner1)
+        self.assertEqual(
+            str(created_store.closing_time), new_store_data["closing_time"]
+        )
+        self.assertEqual(
+            str(created_store.opening_time), new_store_data["opening_time"]
+        )
+        self.assertNotIn("message", response.data)
 
-# Test list stores with hours info
-# Test retrieve store hours
-# Test update store hours
-# Test custom messages in responses
-# StoreManagersView tests:
+    def test_create_store_invalid_data(self):
+        invalid_data = {
+            "name": "",  # empty name
+            "address": "456 Side St",
+            "city": "New City",
+            "state_abbrv": "XX",  # invalid state
+            "plz": "123",  # too short
+            "opening_time": "25:00:00",  # invalid time
+            "closing_time": "18:00:00",
+            "manager_ids": [999],  # non-existent manager
+        }
+        response = self.client.post(self.url, invalid_data)
 
-# Test list stores with manager info
-# Test retrieve store managers
-# Test update store managers
-# Test custom messages in responses
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(Store.objects.count(), 3)  # no new store created
+
+        # Verify error messages
+        self.assertEqual(response.data["name"], ["This field may not be blank."])
+        self.assertEqual(response.data["state_abbrv"][0].code, "invalid_choice")
+        self.assertEqual(response.data["plz"][0].code, "invalid")
+        self.assertEqual(response.data["opening_time"][0].code, "invalid")
+        self.assertEqual(response.data["manager_ids"][0].code, "does_not_exist")
+
+    # Test retrieve store
+    def test_retrieve_valid_store(self):
+        url = reverse("stores-detail", args=[self.store1.id])
+
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["id"], self.store1.id)
+        for key, value in STORE1_DATA.items():
+            self.assertEqual(response.data[key], value)
+        self.assertEqual(
+            response.data["message"],
+            "Modify all aspects of a store by filling the relevant field.",
+        )
+
+    def test_retrieve_store_invalid(self):
+        url = reverse("stores-detail", args=[999])
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertIn("detail", response.data)
+        self.assertEqual(response.data["detail"].code, "not_found")
+
+    # Test update store
+    def test_update_store(self):
+        url = reverse("stores-detail", args=[self.store1.id])
+
+        # Try to update all fields
+        response = self.client.patch(url, STORE3_DATA)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        updated_store = Store.objects.get(id=self.store1.id)
+
+        # Check read-only fields
+        read_only_fields = {"id", "owner_id"}
+        for field in read_only_fields:
+            if field == "id":
+                self.assertEqual(updated_store.id, self.store1.id)
+            else:
+                self.assertEqual(updated_store.owner_id, self.owner1)
+
+        # Check mutable fields
+        for key, value in STORE3_DATA.items():
+            if key not in read_only_fields:
+                if key in ["opening_time", "closing_time"]:
+                    self.assertEqual(str(getattr(updated_store, key)), value)
+                elif key == "manager_ids":
+                    self.assertIn(self.manager2, updated_store.manager_ids.all())
+                else:
+                    self.assertEqual(getattr(updated_store, key), value)
+
+    def test_update_nonexistent_store(self):
+        url = reverse("stores-detail", args=[999])
+        update_data = {"name": "New Name"}
+        response = self.client.patch(url, update_data)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertIn("detail", response.data)
+        self.assertEqual(response.data["detail"].code, "not_found")
+
+    def test_update_store_invalid_data(self):
+        url = reverse("stores-detail", args=[self.store1.id])
+        update_data = {
+            "name": "",  # invalid name
+            "address": "456 Side St",
+            "city": "New City",
+            "state_abbrv": "XX",  # invalid state
+            "plz": "123",  # too short
+            "opening_time": "25:00:00",  # invalid time
+            "closing_time": "18:00:00",
+            "manager_ids": [999],  # non-existent manager
+        }
+        response = self.client.patch(url, update_data)
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(Store.objects.count(), 3)  # no new store created
+
+        # Verify error messages
+        self.assertEqual(response.data["name"], ["This field may not be blank."])
+        self.assertEqual(response.data["state_abbrv"][0].code, "invalid_choice")
+        self.assertEqual(response.data["plz"][0].code, "invalid")
+        self.assertEqual(response.data["opening_time"][0].code, "invalid")
+        self.assertEqual(response.data["manager_ids"][0].code, "does_not_exist")
+
+    # Test delete store
+    def test_delete_store(self):
+        url = reverse("stores-detail", args=[self.store1.id])
+        response = self.client.delete(url)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(Store.objects.count(), 2)
+        self.assertFalse(Store.objects.filter(id=self.store1.id).exists())
+
+    def test_delete_nonexistent_store(self):
+        url = reverse("stores-detail", args=[999])
+        response = self.client.delete(url)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(Store.objects.count(), 3)
+        self.assertEqual(response.data["detail"].code, "not_found")
+
+    # def test_delete_store_by_manager(self):
+    #     this should be blocked once I have permissions put in.
+    # StoreDaysView tests:
+
+    # Test list stores with days info
+    # Test retrieve store days
+    # Test update store days
+    # Test custom messages in responses
+    # StoreHoursView tests:
+
+    # Test list stores with hours info
+    # Test retrieve store hours
+    # Test update store hours
+    # Test custom messages in responses
+    # StoreManagersView tests:
+
+    # Test list stores with manager info
+    # Test retrieve store managers
+    # Test update store managers
+    # Test custom messages in responses

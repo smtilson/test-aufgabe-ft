@@ -58,6 +58,9 @@ class Store(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        ordering = ["id"]
+
     @property
     def location(self):
         return f"{self.address}, {self.city}, {self.state_abbrv}"
