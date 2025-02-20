@@ -36,6 +36,7 @@ class StoreSerializer(serializers.ModelSerializer):
         return [str(mng) for mng in obj.manager_ids.all()]
 
     def validate(self, data):
+        data = super().validate(data)
         opening_time = data.get("opening_time")
         closing_time = data.get("closing_time")
         if opening_time and closing_time and opening_time >= closing_time:
@@ -130,6 +131,16 @@ class HoursSerializer(serializers.ModelSerializer):
 
     def get_days_of_operation(self, obj):
         return obj.days_open
+
+    def validate(self, data):
+        data = super().validate(data)
+        opening_time = data.get("opening_time")
+        closing_time = data.get("closing_time")
+        if opening_time and closing_time and opening_time >= closing_time:
+            raise serializers.ValidationError(
+                {"closing_time": "Closing time must be later than opening time"}
+            )
+        return data
 
 
 class ManagersSerializer(serializers.ModelSerializer):

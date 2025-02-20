@@ -357,3 +357,40 @@ class HoursSerializerTest(BaseTestCase):
 
         self.assertEqual(updated_store.opening_time, time(10, 0))
         self.assertEqual(updated_store.closing_time, time(20, 0))
+
+    def test_validate_time_range(self):
+        invalid_hours = {"opening_time": "17:00:00", "closing_time": "09:00:00"}
+        serializer = HoursSerializer(self.store, data=invalid_hours, partial=True)
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("closing_time", serializer.errors)
+        self.assertIn("must be later", str(serializer.errors["closing_time"][0]))
+
+    def test_read_only_fields(self):
+        data = {
+            "id": 999,
+            "name": "New Name",
+        }
+        serializer = HoursSerializer(self.store, data=data, partial=True)
+        self.assertTrue(serializer.is_valid())
+        updated_store = serializer.save()
+
+        self.assertEqual(updated_store.id, self.store.id)
+        self.assertEqual(updated_store.name, self.store.name)
+
+    def test_contains_expected_fields(self):
+        data = self.serializer.data
+        expected_fields = {
+            "id",
+            "name",
+            "owner",
+            "managers",
+            "opening_time",
+            "closing_time",
+        }
+        self.assertEqual(set(data.keys()), expected_fields)
+
+
+class ManagersSerializerTest(BaseTestCase):
+    def setUp(self):
+        super().setUp()
+        self.serializer = ManagersSerializer(instance=self.store)
