@@ -29,8 +29,6 @@ STORE_DATA = {
     "city": "Test City",
     "state_abbrv": "BE",
     "plz": "12345",
-    "opening_time": time(9, 0),
-    "closing_time": time(17, 0),
 }
 
 User = get_user_model()
@@ -58,8 +56,12 @@ class BaseTestCase(TestCase):
             "samstag": False,
             "sonntag": False,
         }
+        self.times = {
+            "opening_time": "07:00:00",
+            "closing_time": "17:00:00",
+        }
         self.store = Store.objects.create(
-            owner_id=self.owner, **STORE_DATA, **self.initial_days
+            owner_id=self.owner, **STORE_DATA, **self.initial_days, **self.times
         )
         self.store.manager_ids.add(self.manager)
 
@@ -129,15 +131,19 @@ class StoreSerializerTest(BaseTestCase):
 
         self.assertTrue(deserializer.is_valid())
         deserialized_data = deserializer.validated_data
-
+        avoid = {"manager_ids", "closing_time", "opening_time"}
         for key in deserialized_data.keys():
-            if key == "manager_ids":
+            if key in avoid:
                 continue
             self.assertEqual(deserialized_data[key], getattr(self.store, key))
 
         self.assertEqual(
             deserialized_data["manager_ids"], list(self.store.manager_ids.all())
         )
+        opening_time = getattr(self.store, "opening_time")
+        self.assertEqual(str(deserialized_data["opening_time"]), opening_time)
+        closing_time = str(getattr(self.store, "closing_time"))
+        self.assertEqual(str(deserialized_data["closing_time"]), closing_time)
 
     def test_invalid_state_abbreviation(self):
         serialized_data = self.serializer.data
@@ -336,3 +342,18 @@ class DaysSerializerTest(BaseTestCase):
 
         for key, value in data.items():
             self.assertNotEqual(getattr(updated_store, key), value)
+
+
+class HoursSerializerTest(BaseTestCase):
+    def setUp(self):
+        super().setUp()
+        self.serializer = HoursSerializer(instance=self.store)
+
+    def test_update_hours(self):
+        new_hours = {"opening_time": "10:00:00", "closing_time": "20:00:00"}
+        serializer = HoursSerializer(self.store, data=new_hours, partial=True)
+        self.assertTrue(serializer.is_valid())
+        updated_store = serializer.save()
+
+        self.assertEqual(updated_store.opening_time, time(10, 0))
+        self.assertEqual(updated_store.closing_time, time(20, 0))
