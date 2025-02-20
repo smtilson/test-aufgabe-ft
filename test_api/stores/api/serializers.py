@@ -5,7 +5,6 @@ from users.models import CustomUser
 
 class StoreSerializer(serializers.ModelSerializer):
     open_days = serializers.SerializerMethodField()
-    # owner = serializers.PrimaryKeyRelatedField(queryset=CustomUser.objects need to filter this?  many=False, read_only=False)
     owner = serializers.SerializerMethodField()
     manager_ids = serializers.PrimaryKeyRelatedField(
         queryset=CustomUser.objects.all(), many=True, read_only=False
@@ -35,6 +34,15 @@ class StoreSerializer(serializers.ModelSerializer):
 
     def get_managers(self, obj):
         return [str(mng) for mng in obj.manager_ids.all()]
+
+    def validate(self, data):
+        opening_time = data.get("opening_time")
+        closing_time = data.get("closing_time")
+        if opening_time and closing_time and opening_time >= closing_time:
+            raise serializers.ValidationError(
+                {"closing_time": "Closing time must be later than opening time"}
+            )
+        return data
 
     def update(self, instance, validated_data):
         managers_data = validated_data.pop("manager_ids", [])
