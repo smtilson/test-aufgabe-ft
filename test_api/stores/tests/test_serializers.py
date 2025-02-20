@@ -2,7 +2,12 @@ from django.test import TestCase
 from django.contrib.auth import get_user_model
 from datetime import time
 from stores.models import Store
-from stores.api.serializers import StoreSerializer
+from stores.api.serializers import (
+    StoreSerializer,
+    DaysSerializer,
+    HoursSerializer,
+    ManagersSerializer,
+)
 
 OWNER_DATA = {
     "email": "owner@example.com",
@@ -31,12 +36,17 @@ STORE_DATA = {
 User = get_user_model()
 
 
-class StoreSerializerTest(TestCase):
+class BaseTestCase(TestCase):
     def setUp(self):
         self.owner = User.objects.create_user(**OWNER_DATA)
         self.manager = User.objects.create_user(**MANAGER_DATA)
         self.store = Store.objects.create(owner_id=self.owner, **STORE_DATA)
         self.store.manager_ids.add(self.manager)
+
+
+class StoreSerializerTest(TestCase):
+    def setUp(self):
+        super().setUp()
         self.serializer = StoreSerializer(instance=self.store)
 
     def test_contains_expected_fields(self):
@@ -66,6 +76,93 @@ class StoreSerializerTest(TestCase):
             "sonntag",
         }
         self.assertEqual(set(data.keys()), expected_fields)
+
+    def test_create_store_via_serializer(self):
+        new_store_data = {
+            "name": "New Store",
+            "owner_id": self.owner.id,
+            "address": "456 Side St",
+            "city": "New City",
+            "state_abbrv": "HH",
+            "plz": "54321",
+            "opening_time": "08:00:00",
+            "closing_time": "18:00:00",
+            "manager_ids": [self.manager.id],
+        }
+        serializer = StoreSerializer(data=new_store_data)
+        self.assertTrue(serializer.is_valid())
+        store = serializer.save()
+
+        for key in new_store_data:
+            if key in {"owner_id", "manager_ids", "opening_time", "closing_time"}:
+                continue
+            value = getattr(store, key)
+            self.assertEqual(value, new_store_data[key])
+        self.assertEqual(store.owner_id, self.owner)
+        self.assertIn(self.manager, store.manager_ids.all())
+        self.assertEqual(store.opening_time, time(8, 0))
+        self.assertEqual(store.closing_time, time(18, 0))
+
+    def test_deserialize_store(self):
+        serialized_data = self.serializer.data
+        deserializer = StoreSerializer(data=serialized_data)
+
+        self.assertTrue(deserializer.is_valid())
+        deserialized_data = deserializer.validated_data
+
+        for key in deserialized_data.keys():
+            if key == "manager_ids":
+                continue
+            self.assertEqual(deserialized_data[key], getattr(self.store, key))
+
+        self.assertEqual(
+            deserialized_data["manager_ids"], list(self.store.manager_ids.all())
+        )
+
+    def test_invalid_state_abbreviation(self):
+        serialized_data = self.serializer.data
+        serialized_data["state_abbrv"] = "XX"
+
+        serializer = StoreSerializer(data=serialized_data)
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("state_abbrv", serializer.errors)
+        self.assertIn(
+            "is not a valid choice.", str(serializer.errors["state_abbrv"][0])
+        )
+
+    def test_invalid_plz(self):
+        serialized_data = self.serializer.data
+        serialized_data["plz"] = "123ab"
+        serializer = StoreSerializer(data=serialized_data)
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("plz", serializer.errors)
+        self.assertIn("only numbers", str(serializer.errors["plz"][0]))
+
+        serialized_data["plz"] = "123456"
+        serializer = StoreSerializer(data=serialized_data)
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("plz", serializer.errors)
+        self.assertIn("exactly 5 digits", str(serializer.errors["plz"][0]))
+
+    def test_optional_fields(self):
+        required_data = {
+            "name": "Test Store",
+            "owner_id": self.owner.id,
+            "address": "123 Test St",
+            "city": "Test City",
+            "state_abbrv": "BE",
+        }
+        serializer = StoreSerializer(data=required_data)
+        self.assertTrue(serializer.is_valid())
+
+    def test_required_fields(self):
+        serializer = StoreSerializer(data={})
+        self.assertFalse(serializer.is_valid())
+        required_fields = {"name", "owner_id", "address", "city", "state_abbrv"}
+        for field in required_fields:
+            self.assertIn(field, serializer.errors)
+        for field in serializer.errors:
+            self.assertIn(field, required_fields)
 
     def test_open_days_field(self):
         self.store.montag = True
@@ -156,19 +253,7 @@ class StoreSerializerTest(TestCase):
         self.assertIn("closing_time", serializer.errors)
 
 
-"""
-    def test_invalid_time_range(self):
-        invalid_data = {
-            **STORE_DATA,
-            "opening_time": time(17, 0),
-            "closing_time": time(9, 0),
-            "owner_id": self.owner.id,
-        }
-        serializer = StoreSerializer(data=invalid_data)
-        self.assertFalse(serializer.is_valid())
-        self.assertIn("closing_time", serializer.errors)
-        self.assertEqual(
-            serializer.errors["closing_time"][0],
-            "Closing time must be later than opening time",
-        )
-"""
+class DaysSerializerTest(TestCase):
+    def setUp(self):
+        super().setUp()
+        self.serializer = DaysSerializer(instance=self.store)

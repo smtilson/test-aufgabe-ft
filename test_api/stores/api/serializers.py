@@ -7,7 +7,7 @@ class StoreSerializer(serializers.ModelSerializer):
     open_days = serializers.SerializerMethodField()
     owner = serializers.SerializerMethodField()
     manager_ids = serializers.PrimaryKeyRelatedField(
-        queryset=CustomUser.objects.all(), many=True, read_only=False
+        queryset=CustomUser.objects.all(), many=True, read_only=False, required=False
     )
     managers = serializers.SerializerMethodField()
 
@@ -43,6 +43,20 @@ class StoreSerializer(serializers.ModelSerializer):
                 {"closing_time": "Closing time must be later than opening time"}
             )
         return data
+
+    def validate_state_abbrv(self, value):
+        if value not in Store.STATES:
+            raise serializers.ValidationError(
+                f"'{value}' is not a valid state abbreviation"
+            )
+        return value
+
+    def validate_plz(self, value):
+        if not value.isdigit():
+            raise serializers.ValidationError("PLZ must contain only numbers")
+        if len(value) != 5:
+            raise serializers.ValidationError("PLZ must be exactly 5 digits")
+        return value
 
     def update(self, instance, validated_data):
         managers_data = validated_data.pop("manager_ids", [])
