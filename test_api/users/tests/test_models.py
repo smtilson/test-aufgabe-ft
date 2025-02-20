@@ -55,6 +55,7 @@ class CustomUserModelTest(TestCase):
         user = User.objects.create_user(**self.user_data)
         token = Token.objects.get(user=user)
         self.assertEqual(token.user, user)
+        # tests user.auth_token method works properly
         self.assertEqual(token.key, user.auth_token.key)
 
     def test_email_uniqueness(self):
