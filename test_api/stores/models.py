@@ -64,12 +64,13 @@ class Store(models.Model):
 
     @property
     def state(self):
-        return self.STATE_CHOICES[self.state_abbrv]
+        return self.STATES[self.state_abbrv]
 
     @property
     def days_open(self):
         return str([day.capitalize() for day in DAYS_OF_WEEK if getattr(self, day)])
 
+    # I think this
     @property
     def day_data(self):
         return {day: getattr(self, day) for day in DAYS_OF_WEEK}

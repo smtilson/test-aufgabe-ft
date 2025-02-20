@@ -59,6 +59,8 @@ At Foodtracks each of our customers has their own DB.
  - Fix: Overwrite update method of relevant serializer.
 - Test for delete user is failing to get the right status code.
  - Fix: Add field HTTP_ACCEPT: application/json to the client in setUp method.
+- Django can't find tests.
+ - Fix: add __init__.py to the tests folder.
 ## References
 ### AI support
 - [ChatGPT](https://chat.openai.com/)
