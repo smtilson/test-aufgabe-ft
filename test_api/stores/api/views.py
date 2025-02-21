@@ -51,35 +51,20 @@ class StoreViewSet(ModelViewSet):
 class StoreDaysView(
     List, Retrieve, Update, GenericAPIView
 ):  # Reorder mixins before GenericAPIView
-    print("StoreDaysView class loaded")
+    # print("StoreDaysView class loaded")
     serializer_class = DaysSerializer
     permission_classes = [IsAuthenticated]
     authentication_classes = [TokenAuthentication, SessionAuthentication]
 
     def __init__(self, *args, **kwargs):
-        print("View initialized")
+        # print("View initialized")
         super().__init__(*args, **kwargs)
 
     def get_queryset(self):
-        print("get_queryset called")
-        queryset = get_user_stores(self.request.user)
-        print("queryset:", queryset)
-        return queryset
-
-    #        return get_user_stores(self.request.user)
-
-    def dispatch(self, request, *args, **kwargs):
-        print("dispatch called")
-        print("user:", request.user)
-        return super().dispatch(request, *args, **kwargs)
+        return get_user_stores(self.request.user)
 
     def get(self, request, *args, **kwargs):
-        print("get method called in store days view")
-        print("Request path:", request.path)
-        print("kwargs:", kwargs)  # Add this to see what kwargs are being passed
-
-        if pk := kwargs.get("pk", None):
-            print("retrieving record for store ", pk)
+        if kwargs.get("pk", None):
             response = self.retrieve(request, *args, **kwargs)
             msg = (
                 "Modify the days of operation by selecting or unselecting a given day."
@@ -87,15 +72,10 @@ class StoreDaysView(
             response.data["message"] = msg
             return response
 
-        print("retrieving all records, no pk found")
         response = self.list(request, *args, **kwargs)
         msg = "Select store to modify its days of operation."
         response.data["message"] = msg
         return response
-
-    def list(self, request, *args, **kwargs):
-        print("List method called")
-        return super().list(request, *args, **kwargs)
 
 
 class TestView(APIView):
@@ -103,7 +83,7 @@ class TestView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        print("TestView.get called")
+        # print("TestView.get called")
         return Response(
             {
                 "message": f"Hello, world! {request.user}, {request.path}",
@@ -193,11 +173,11 @@ class OwnerView(APIView):
 
 # Another approach would be to use a mixin class.
 def get_user_stores(user):
-    print("User:", user)
+    # print("User:", user)
     queryset = Store.objects.filter(
         Q(manager_ids__in=[user]) | Q(owner_id=user)
     ).distinct()
-    print("Queryset count:", queryset.count())
+    # print("Queryset count:", queryset.count())
     return queryset
 
 
@@ -205,14 +185,14 @@ class StoreDaysListView(APIView):
     authentication_classes = [TokenAuthentication, SessionAuthentication]
     permission_classes = [IsAuthenticated]
 
-    print("StoreDaysListView loaded")
+    # print("StoreDaysListView loaded")
 
     def __init__(self, *args, **kwargs):
-        print("StoreDaysListView initialized")
+        # print("StoreDaysListView initialized")
         super().__init__(*args, **kwargs)
 
     def get(self, request):
-        print("List view GET called")
+        # print("List view GET called")
         return Response({"message": "This is the list view"}, status=status.HTTP_200_OK)
 
 
@@ -220,14 +200,14 @@ class StoreDaysDetailView(APIView):
     authentication_classes = [TokenAuthentication, SessionAuthentication]
     permission_classes = [IsAuthenticated]
 
-    print("StoreDaysDetailView loaded")
+    # print("StoreDaysDetailView loaded")
 
     def __init__(self, *args, **kwargs):
-        print("StoreDaysDetailView initialized")
+        # print("StoreDaysDetailView initialized")
         super().__init__(*args, **kwargs)
 
     def get(self, request, pk):
-        print("Detail view GET called")
+        # print("Detail view GET called")
         return Response(
             {"message": "This is the detail view"}, status=status.HTTP_200_OK
         )

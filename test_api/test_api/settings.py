@@ -52,7 +52,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    "stores.middleware.RequestDebugMiddleware",
+    # "stores.middleware.RequestDebugMiddleware",
 ]
 
 ROOT_URLCONF = "test_api.urls"

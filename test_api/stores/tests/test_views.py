@@ -343,27 +343,27 @@ class StoreDaysViewTests(BaseTestCase):
         )  # Adjust according to actual data
         self.assertIn("Modify the days of operation by", response.data["message"])
 
-    def test_store_days_list_get(self):
-        url = reverse("store-days-list")
-        print("Test URL:", url)
-        self.client.debug = True
-        response = self.client.get(url)  # .debug()
-        print("Response headers:", response.headers)
-        print("Response content:", response.content)
-
     def test_get_store_days_list(self):
         url = reverse("store-days-list")
-        print("url:", url)
         response = self.client.get(url)
-        print("response:", response.content)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    @skip("Skipping test_get_store_days_no_id")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data["results"]), 2)  # Owner1 has 2 stores
+
+        # Check first store in results
+        first_store = response.data["results"][0]
+        self.assertEqual(first_store["id"], self.store1.id)
+
+        # Check message
+        self.assertEqual(
+            response.data["message"], "Select store to modify its days of operation."
+        )
+
     def test_get_store_days_invalid_id(self):
-        url = "/stores/invalid/days/"
+        url = reverse("store-days-detail", kwargs={"pk": 999})
         response = self.client.get(url)
-        self.assertEqual(response.status_code, 404)
-        self.assertIn(b"not found", response.content)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(response.data["detail"].code, "not_found")
 
     @skip("Skipping test_update_store_days")
     def test_update_store_days(self):
