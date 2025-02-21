@@ -365,19 +365,54 @@ class StoreDaysViewTests(BaseTestCase):
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
         self.assertEqual(response.data["detail"].code, "not_found")
 
-    @skip("Skipping test_update_store_days")
-    def test_update_store_days(self):
-        data = {"montag": True, "dienstag": False, "donnerstag": True}  # Valid data
-        response = self.client.post(self.url, data)
-        self.assertEqual(response.status_code, 200)  # or the expected status code
-        self.assertEqual(response.data["montag"], True)
-        self.assertEqual(response.data["dienstag"], False)
-        self.assertEqual(response.data["donnerstag"], True)
-        self.assertEqual(response.data["mittwoch"], True)
-        self.assertEqual(response.data["message"], "Store days updated successfully.")
+    def test_get_store_days_malformed_id(self):
+        url = "/days-detail/abc/"
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
-    # Test list stores with days info
-    # Test retrieve store days
+    def test_store_days_invalid_auth(self):
+        self.client.credentials(HTTP_AUTHORIZATION="Token invalid_token")
+
+        # Try list endpoint
+        list_url = reverse("store-days-list")
+        list_response = self.client.get(list_url)
+        self.assertEqual(list_response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+        # Try detail endpoint
+        detail_url = reverse("store-days-detail", kwargs={"pk": self.store1.id})
+        detail_response = self.client.get(detail_url)
+        self.assertEqual(detail_response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_update_days_to_false(self):
+        data = {"montag": False, "dienstag": False}
+        response = self.client.patch(self.url, data)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["days_of_operation"], str(["Mittwoch"]))
+
+    def test_update_days_to_true(self):
+        data = {"donnerstag": True, "freitag": True}
+        response = self.client.patch(self.url, data)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            response.data["days_of_operation"],
+            str(["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag"]),
+        )
+
+    def test_update_days_invalid_boolean(self):
+        data = {"montag": "not_a_boolean", "dienstag": 123}
+        response = self.client.patch(self.url, data)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["montag"][0].code, "invalid")
+        self.assertEqual(response.data["dienstag"][0].code, "invalid")
+
+    def test_update_days_invalid_field(self):
+        data = {"invalid_day": True, "not_a_day": False}
+        response = self.client.patch(self.url, data)
+        print(response.content)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["invalid_day"][0].code, "invalid")
+        self.assertEqual(response.data["not_a_day"][0].code, "invalid")
+
     # Test update store days
     # Test custom messages in responses
     # StoreHoursView tests:

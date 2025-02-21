@@ -77,6 +77,9 @@ class StoreDaysView(
         response.data["message"] = msg
         return response
 
+    def patch(self, request, *args, **kwargs):
+        return self.partial_update(request, *args, **kwargs)
+
 
 class TestView(APIView):
     authentication_classes = [TokenAuthentication, SessionAuthentication]

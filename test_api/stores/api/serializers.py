@@ -6,13 +6,28 @@ from users.models import CustomUser
 class StoreSerializer(serializers.ModelSerializer):
     days_of_operation = serializers.SerializerMethodField()
     owner = serializers.SerializerMethodField()
-    manager_ids = serializers.PrimaryKeyRelatedField(
-        queryset=CustomUser.objects.all(), many=True, read_only=False, required=False
-    )
     managers = serializers.SerializerMethodField()
+    name = serializers.CharField(required=False)
+    address = serializers.CharField(required=False)
+    city = serializers.CharField(required=False)
+    state_abbrv = serializers.CharField(required=False)
+    plz = serializers.CharField(required=False)
+    opening_time = serializers.TimeField(required=False)
+    closing_time = serializers.TimeField(required=False)
+    montag = serializers.BooleanField(required=False)
+    dienstag = serializers.BooleanField(required=False)
+    mittwoch = serializers.BooleanField(required=False)
+    donnerstag = serializers.BooleanField(required=False)
+    freitag = serializers.BooleanField(required=False)
+    samstag = serializers.BooleanField(required=False)
+    sonntag = serializers.BooleanField(required=False)
+    manager_ids = serializers.PrimaryKeyRelatedField(
+        queryset=CustomUser.objects.all(), many=True, required=False
+    )
 
     class Meta:
         model = Store
+        raise_unknown_fields = True
         include = ["days_of_operation"]
         fields = "__all__"
         write_only_fields = [
@@ -71,14 +86,22 @@ class StoreSerializer(serializers.ModelSerializer):
 
 
 class DaysSerializer(serializers.ModelSerializer):
-    id = serializers.IntegerField(read_only=True)
-    name = serializers.CharField(read_only=True)
-    owner = serializers.SerializerMethodField()
-    managers = serializers.SerializerMethodField()
-    days_of_operation = serializers.SerializerMethodField()
+    id = serializers.IntegerField(read_only=True, required=False)
+    name = serializers.CharField(read_only=True, required=False)
+    owner = serializers.SerializerMethodField(required=False)
+    managers = serializers.SerializerMethodField(required=False)
+    days_of_operation = serializers.SerializerMethodField(required=False)
+    montag = serializers.BooleanField(required=False)
+    dienstag = serializers.BooleanField(required=False)
+    mittwoch = serializers.BooleanField(required=False)
+    donnerstag = serializers.BooleanField(required=False)
+    freitag = serializers.BooleanField(required=False)
+    samstag = serializers.BooleanField(required=False)
+    sonntag = serializers.BooleanField(required=False)
 
     class Meta:
         model = Store
+        raise_unknown_fields = True
         fields = [
             "id",
             "name",
@@ -103,16 +126,34 @@ class DaysSerializer(serializers.ModelSerializer):
     def get_days_of_operation(self, obj):
         return obj.days_open
 
+    def to_internal_value(self, data):
+        # Get the known fields from the serializer
+        known_fields = set(self.fields.keys())
+        # Get the incoming fields from the data
+        incoming_fields = set(data.keys())
+
+        # Find any unknown fields
+        unknown_fields = incoming_fields - known_fields
+        if unknown_fields:
+            raise serializers.ValidationError(
+                {field: "This field is not recognized." for field in unknown_fields}
+            )
+
+        return super().to_internal_value(data)
+
 
 class HoursSerializer(serializers.ModelSerializer):
-    id = serializers.IntegerField(read_only=True)
-    name = serializers.CharField(read_only=True)
+    id = serializers.IntegerField(read_only=True, required=False)
+    name = serializers.CharField(read_only=True, required=False)
     owner = serializers.SerializerMethodField()
     managers = serializers.SerializerMethodField()
     days_of_operation = serializers.SerializerMethodField()
+    opening_time = serializers.TimeField(required=False)
+    closing_time = serializers.TimeField(required=False)
 
     class Meta:
         model = Store
+        raise_on_validation_error = True
         fields = [
             "id",
             "name",
@@ -144,15 +185,19 @@ class HoursSerializer(serializers.ModelSerializer):
 
 
 class ManagersSerializer(serializers.ModelSerializer):
-    id = serializers.IntegerField(read_only=True)
-    name = serializers.CharField(read_only=True)
+    id = serializers.IntegerField(read_only=True, required=False)
+    name = serializers.CharField(read_only=True, required=False)
     owner = serializers.SerializerMethodField()
     managers = serializers.SerializerMethodField()
     days_of_operation = serializers.SerializerMethodField()
+    manager_ids = serializers.PrimaryKeyRelatedField(
+        queryset=CustomUser.objects.all(), many=True, required=False
+    )
 
     class Meta:
         model = Store
         fields = ["id", "name", "owner", "managers", "manager_ids", "days_of_operation"]
+        raise_on_validation_error = True
 
     def get_owner(self, obj):
         return str(obj.owner_id)
