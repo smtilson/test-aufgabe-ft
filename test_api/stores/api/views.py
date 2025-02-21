@@ -46,30 +46,71 @@ class StoreViewSet(ModelViewSet):
 
 
 # this should be protected by manager and owner permissions
-class StoreDaysView(GenericAPIView, List, Retrieve, Update):
+
+
+class StoreDaysView(
+    List, Retrieve, Update, GenericAPIView
+):  # Reorder mixins before GenericAPIView
+    print("StoreDaysView class loaded")
     serializer_class = DaysSerializer
     permission_classes = [IsAuthenticated]
     authentication_classes = [TokenAuthentication, SessionAuthentication]
 
+    def __init__(self, *args, **kwargs):
+        print("View initialized")
+        super().__init__(*args, **kwargs)
+
     def get_queryset(self):
-        return get_user_stores(self.request.user)
+        print("get_queryset called")
+        queryset = get_user_stores(self.request.user)
+        print("queryset:", queryset)
+        return queryset
+
+    #        return get_user_stores(self.request.user)
+
+    def dispatch(self, request, *args, **kwargs):
+        print("dispatch called")
+        print("user:", request.user)
+        return super().dispatch(request, *args, **kwargs)
 
     def get(self, request, *args, **kwargs):
-        pk = kwargs.get("pk", None)
-        if pk:
+        print("get method called in store days view")
+        print("Request path:", request.path)
+        print("kwargs:", kwargs)  # Add this to see what kwargs are being passed
+
+        if pk := kwargs.get("pk", None):
+            print("retrieving record for store ", pk)
             response = self.retrieve(request, *args, **kwargs)
             msg = (
                 "Modify the days of operation by selecting or unselecting a given day."
             )
             response.data["message"] = msg
             return response
-        return self.list(request, *args, **kwargs)
 
-    def put(self, request, *args, **kwargs):
-        response = self.update(request, *args, **kwargs)
-        msg = "Modify the days of operation by selecting or unselecting a given day."
+        print("retrieving all records, no pk found")
+        response = self.list(request, *args, **kwargs)
+        msg = "Select store to modify its days of operation."
         response.data["message"] = msg
         return response
+
+    def list(self, request, *args, **kwargs):
+        print("List method called")
+        return super().list(request, *args, **kwargs)
+
+
+class TestView(APIView):
+    authentication_classes = [TokenAuthentication, SessionAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        print("TestView.get called")
+        return Response(
+            {
+                "message": f"Hello, world! {request.user}, {request.path}",
+                "results": [],
+                "count": 0,
+            }
+        )
 
 
 # this should be protected by manager and owner permissions
@@ -152,4 +193,41 @@ class OwnerView(APIView):
 
 # Another approach would be to use a mixin class.
 def get_user_stores(user):
-    return Store.objects.filter(Q(manager_ids__in=[user]) | Q(owner_id=user)).distinct()
+    print("User:", user)
+    queryset = Store.objects.filter(
+        Q(manager_ids__in=[user]) | Q(owner_id=user)
+    ).distinct()
+    print("Queryset count:", queryset.count())
+    return queryset
+
+
+class StoreDaysListView(APIView):
+    authentication_classes = [TokenAuthentication, SessionAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    print("StoreDaysListView loaded")
+
+    def __init__(self, *args, **kwargs):
+        print("StoreDaysListView initialized")
+        super().__init__(*args, **kwargs)
+
+    def get(self, request):
+        print("List view GET called")
+        return Response({"message": "This is the list view"}, status=status.HTTP_200_OK)
+
+
+class StoreDaysDetailView(APIView):
+    authentication_classes = [TokenAuthentication, SessionAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    print("StoreDaysDetailView loaded")
+
+    def __init__(self, *args, **kwargs):
+        print("StoreDaysDetailView initialized")
+        super().__init__(*args, **kwargs)
+
+    def get(self, request, pk):
+        print("Detail view GET called")
+        return Response(
+            {"message": "This is the detail view"}, status=status.HTTP_200_OK
+        )
