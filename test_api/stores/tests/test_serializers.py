@@ -67,7 +67,6 @@ class BaseTestCase(TestCase):
         self.store.manager_ids.add(self.manager)
 
 
-@skip("temp")
 class StoreSerializerTest(BaseTestCase):
     def setUp(self):
         super().setUp()
@@ -308,6 +307,15 @@ class StoreSerializerTest(BaseTestCase):
         self.assertFalse(serializer.is_valid())
         self.assertIn("closing_time", serializer.errors)
 
+    def test_unknown_fields(self):
+        invalid_data = {"not_a_field": 123, "invalid_field": False}
+        serializer = StoreSerializer(self.store, data=invalid_data, partial=True)
+        self.assertFalse(serializer.is_valid())
+        for value in serializer.errors.values():
+            self.assertEqual(value.code, "invalid")
+            self.assertIn("field is not recognized", str(value))
+        self.assertEqual(invalid_data.keys(), serializer.errors.keys())
+
 
 class DaysSerializerTest(BaseTestCase):
     def setUp(self):
@@ -342,7 +350,7 @@ class DaysSerializerTest(BaseTestCase):
             "Must be a valid boolean.", str(serializer.errors["montag"][0])
         )
 
-    def test_invalid_day_fields(self):
+    def test_unknown_fields(self):
         invalid_data = {"not_a_day": True, "invalid_field": False}
         serializer = DaysSerializer(self.store, data=invalid_data, partial=True)
         self.assertFalse(serializer.is_valid())
@@ -405,6 +413,15 @@ class HoursSerializerTest(BaseTestCase):
         for field in invalid_data.keys():
             self.assertIn(field, serializer.errors)
             self.assertIn("Time has wrong format", str(serializer.errors[field][0]))
+
+    def test_unknown_fields(self):
+        invalid_data = {"not_a_day": "asd", "invalid_field": False}
+        serializer = HoursSerializer(self.store, data=invalid_data, partial=True)
+        self.assertFalse(serializer.is_valid())
+        for value in serializer.errors.values():
+            self.assertEqual(value.code, "invalid")
+            self.assertIn("field is not recognized", str(value))
+        self.assertEqual(invalid_data.keys(), serializer.errors.keys())
 
     def test_update_hours(self):
         new_hours = {"opening_time": "10:00:00", "closing_time": "20:00:00"}
@@ -511,3 +528,12 @@ class ManagersSerializerTest(BaseTestCase):
         self.assertIn(
             "Expected a list of items", str(serializer.errors["manager_ids"][0])
         )
+
+    def test_unknown_fields(self):
+        invalid_data = {"not_a_day": True, "invalid_field": 123}
+        serializer = ManagersSerializer(self.store, data=invalid_data, partial=True)
+        self.assertFalse(serializer.is_valid())
+        for value in serializer.errors.values():
+            self.assertEqual(value.code, "invalid")
+            self.assertIn("field is not recognized", str(value))
+        self.assertEqual(invalid_data.keys(), serializer.errors.keys())

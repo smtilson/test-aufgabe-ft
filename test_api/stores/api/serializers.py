@@ -84,6 +84,21 @@ class StoreSerializer(serializers.ModelSerializer):
         instance.manager_ids.remove(*remove_managers)
         return instance
 
+    def to_internal_value(self, data):
+        # Get the known fields from the serializer
+        known_fields = set(self.fields.keys())
+        # Get the incoming fields from the data
+        incoming_fields = set(data.keys())
+
+        # Find any unknown fields
+        unknown_fields = incoming_fields - known_fields
+        if unknown_fields:
+            raise serializers.ValidationError(
+                {field: "This field is not recognized." for field in unknown_fields}
+            )
+
+        return super().to_internal_value(data)
+
 
 class DaysSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(read_only=True, required=False)
@@ -183,6 +198,21 @@ class HoursSerializer(serializers.ModelSerializer):
             )
         return data
 
+    def to_internal_value(self, data):
+        # Get the known fields from the serializer
+        known_fields = set(self.fields.keys())
+        # Get the incoming fields from the data
+        incoming_fields = set(data.keys())
+
+        # Find any unknown fields
+        unknown_fields = incoming_fields - known_fields
+        if unknown_fields:
+            raise serializers.ValidationError(
+                {field: "This field is not recognized." for field in unknown_fields}
+            )
+
+        return super().to_internal_value(data)
+
 
 class ManagersSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(read_only=True, required=False)
@@ -217,3 +247,18 @@ class ManagersSerializer(serializers.ModelSerializer):
         instance.manager_ids.add(*add_managers)
         instance.manager_ids.remove(*remove_managers)
         return instance
+
+    def to_internal_value(self, data):
+        # Get the known fields from the serializer
+        known_fields = set(self.fields.keys())
+        # Get the incoming fields from the data
+        incoming_fields = set(data.keys())
+
+        # Find any unknown fields
+        unknown_fields = incoming_fields - known_fields
+        if unknown_fields:
+            raise serializers.ValidationError(
+                {field: "This field is not recognized." for field in unknown_fields}
+            )
+
+        return super().to_internal_value(data)
