@@ -2,6 +2,7 @@ from django.test import TestCase
 from django.contrib.auth import get_user_model
 from datetime import time
 from unittest import skip
+from unittest.mock import Mock
 from stores.models import Store
 from stores.api.serializers import (
     StoreSerializer,
@@ -195,7 +196,6 @@ class StoreSerializerTest(BaseTestCase):
         for day in self.initial_days:
             self.assertEqual(getattr(self.store, day), self.initial_days[day])
 
-    @skip("implementation issue")
     def test_optional_fields(self):
         required_data = {
             "name": "Test Store",
@@ -209,15 +209,41 @@ class StoreSerializerTest(BaseTestCase):
         print(serializer.errors)
         self.assertTrue(serializer.is_valid())
 
-    @skip("implementation issue")
     def test_required_fields(self):
-        serializer = StoreSerializer(data={})
+        # context = {"request": type("Request", (), {"method": "POST"})()}
+        mock_request = Mock()
+        mock_request.method = "POST"
+        context = {"request": mock_request}
+        print("testing creation with empty data in required fields")
+        print(context)
+        serializer = StoreSerializer(data={}, context=context)
+        print("checking serializers context ", serializer.context)
         self.assertFalse(serializer.is_valid())
+
+        # Test empty
+        print(serializer.errors)
+        print("testeing creation with empty data in required fields stest")
         required_fields = {"name", "owner_id", "address", "city", "state_abbrv"}
-        for field in required_fields:
-            self.assertIn(field, serializer.errors)
+        self.assertEqual(set(serializer.errors.keys()), required_fields)
+
+        # Test partial data
+        partial_data = {
+            "name": "Test Store",
+            "owner_id": self.owner.id,
+            "address": "123 Test St",
+        }
+        serializer = StoreSerializer(data=partial_data, context=context)
+        self.assertFalse(serializer.is_valid())
+        missing_fields = {"city", "state_abbrv"}
+        self.assertEqual(set(serializer.errors.keys()), missing_fields)
+
+        # Verify error messages
         for field in serializer.errors:
-            self.assertIn(field, required_fields)
+            self.assertIn(
+                "is required for store creation.",
+                str(serializer.errors[field][0]),
+            )
+            self.assertIn(field, str(serializer.errors[field][0]))
 
     def test_days_of_operation_field(self):
         serializer = StoreSerializer(instance=self.store)

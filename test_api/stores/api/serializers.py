@@ -6,6 +6,9 @@ from users.models import CustomUser
 class StoreSerializer(serializers.ModelSerializer):
     days_of_operation = serializers.SerializerMethodField()
     owner = serializers.SerializerMethodField()
+    owner_id = serializers.PrimaryKeyRelatedField(
+        queryset=CustomUser.objects.all(), required=False
+    )
     managers = serializers.SerializerMethodField()
     name = serializers.CharField(required=False)
     address = serializers.CharField(required=False)
@@ -50,16 +53,6 @@ class StoreSerializer(serializers.ModelSerializer):
     def get_managers(self, obj):
         return [str(mng) for mng in obj.manager_ids.all()]
 
-    def validate(self, data):
-        data = super().validate(data)
-        opening_time = data.get("opening_time")
-        closing_time = data.get("closing_time")
-        if opening_time and closing_time and opening_time >= closing_time:
-            raise serializers.ValidationError(
-                {"closing_time": "Closing time must be later than opening time"}
-            )
-        return data
-
     def validate_state_abbrv(self, value):
         if value not in Store.STATES:
             raise serializers.ValidationError(
@@ -98,6 +91,35 @@ class StoreSerializer(serializers.ModelSerializer):
             )
 
         return super().to_internal_value(data)
+
+    def is_creation(self):
+        return self.context.get("request") and self.context["request"].method == "POST"
+
+    def check_required_fields(self, data):
+        if not self.is_creation():
+            return
+        required_fields = ["name", "owner_id", "address", "city", "state_abbrv"]
+        errors = {}
+        for field in required_fields:
+            if field not in data:
+                errors[field] = f"The field {field} is required for store creation."
+
+        if errors:
+            raise serializers.ValidationError(errors)
+
+    def check_open_closing_times(self, data):
+        opening_time = data.get("opening_time")
+        closing_time = data.get("closing_time")
+        if opening_time and closing_time and opening_time >= closing_time:
+            raise serializers.ValidationError(
+                {"closing_time": "Closing time must be later than opening time"}
+            )
+
+    def validate(self, data):
+        self.check_required_fields(data)
+        data = super().validate(data)
+        self.check_open_closing_times(data)
+        return data
 
 
 class DaysSerializer(serializers.ModelSerializer):
@@ -226,7 +248,14 @@ class ManagersSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Store
-        fields = ["id", "name", "owner", "managers", "manager_ids", "days_of_operation"]
+        fields = [
+            "id",
+            "name",
+            "owner",
+            "managers",
+            "manager_ids",
+            "days_of_operation",
+        ]
         raise_on_validation_error = True
 
     def get_owner(self, obj):
