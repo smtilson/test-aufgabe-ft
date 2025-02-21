@@ -13,6 +13,7 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.authentication import TokenAuthentication, SessionAuthentication
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.pagination import PageNumberPagination
 from django.db.models import Q
 from ..models import Store
 from .serializers import (
@@ -23,11 +24,18 @@ from .serializers import (
 )
 
 
+class StoreViewsPagination(PageNumberPagination):
+    page_size = 3
+    page_size_query_param = "page_size"
+    max_page_size = 100
+
+
 # protect this with superuser permissions
 class StoreViewSet(ModelViewSet):
     serializer_class = StoreSerializer
     permission_classes = [IsAuthenticated]
     authentication_classes = [TokenAuthentication, SessionAuthentication]
+    pagination_class = StoreViewsPagination
 
     def get_queryset(self):
         return get_user_stores(self.request.user)
@@ -55,6 +63,7 @@ class StoreDaysView(
     serializer_class = DaysSerializer
     permission_classes = [IsAuthenticated]
     authentication_classes = [TokenAuthentication, SessionAuthentication]
+    pagination_class = StoreViewsPagination
 
     def __init__(self, *args, **kwargs):
         # print("View initialized")
@@ -81,26 +90,12 @@ class StoreDaysView(
         return self.partial_update(request, *args, **kwargs)
 
 
-class TestView(APIView):
-    authentication_classes = [TokenAuthentication, SessionAuthentication]
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        # print("TestView.get called")
-        return Response(
-            {
-                "message": f"Hello, world! {request.user}, {request.path}",
-                "results": [],
-                "count": 0,
-            }
-        )
-
-
 # this should be protected by manager and owner permissions
 class StoreHoursView(GenericAPIView, List, Retrieve, Update):
     serializer_class = HoursSerializer
     permission_classes = [IsAuthenticated]
     authentication_classes = [TokenAuthentication, SessionAuthentication]
+    pagination_class = StoreViewsPagination
 
     def get_queryset(self):
         return get_user_stores(self.request.user)
@@ -126,6 +121,7 @@ class StoreManagersView(GenericAPIView, List, Retrieve, Update):
     serializer_class = ManagersSerializer
     permission_classes = [IsAuthenticated]
     authentication_classes = [TokenAuthentication, SessionAuthentication]
+    pagination_class = StoreViewsPagination
 
     def get_queryset(self):
         return get_user_stores(self.request.user)

@@ -60,6 +60,14 @@ class StoreSerializer(serializers.ModelSerializer):
             )
         return value
 
+    def validate_name(self, value):
+        # something is catching this error before I get to here.
+        if not isinstance(value, str):
+            raise serializers.ValidationError("Name must be a string.")
+        elif len(value) == 0:
+            raise serializers.ValidationError("Name cannot be blank.")
+        return value
+
     def validate_plz(self, value):
         if not value.isdigit():
             raise serializers.ValidationError("PLZ must contain only numbers")

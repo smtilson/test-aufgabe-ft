@@ -192,6 +192,20 @@ class StoreSerializerTest(BaseTestCase):
         self.assertIn("plz", serializer.errors)
         self.assertIn("exactly 5 digits", str(serializer.errors["plz"][0]))
 
+    def test_invalid_name(self):
+        serialized_data = self.serializer.data
+        serialized_data["name"] = {123}
+        serializer = StoreSerializer(data=serialized_data)
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("name", serializer.errors)
+        self.assertIn("Not a valid string", str(serializer.errors["name"][0]))
+
+        serialized_data["name"] = ""
+        serializer = StoreSerializer(data=serialized_data)
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("name", serializer.errors)
+        self.assertIn("not be blank", str(serializer.errors["name"][0]))
+
     def test_initial_days(self):
         for day in self.initial_days:
             self.assertEqual(getattr(self.store, day), self.initial_days[day])
@@ -206,7 +220,6 @@ class StoreSerializerTest(BaseTestCase):
         }
         serializer = StoreSerializer(data=required_data)
         serializer.is_valid()
-        print(serializer.errors)
         self.assertTrue(serializer.is_valid())
 
     def test_required_fields(self):
@@ -214,15 +227,10 @@ class StoreSerializerTest(BaseTestCase):
         mock_request = Mock()
         mock_request.method = "POST"
         context = {"request": mock_request}
-        print("testing creation with empty data in required fields")
-        print(context)
         serializer = StoreSerializer(data={}, context=context)
-        print("checking serializers context ", serializer.context)
         self.assertFalse(serializer.is_valid())
 
         # Test empty
-        print(serializer.errors)
-        print("testeing creation with empty data in required fields stest")
         required_fields = {"name", "owner_id", "address", "city", "state_abbrv"}
         self.assertEqual(set(serializer.errors.keys()), required_fields)
 
