@@ -16,6 +16,7 @@ from rest_framework import status
 from rest_framework.pagination import PageNumberPagination
 from django.db.models import Q
 from ..models import Store
+from ..parsers import TypeValidationParser
 from .serializers import (
     StoreSerializer,
     DaysSerializer,
@@ -37,6 +38,7 @@ class StoreViewSet(ModelViewSet):
     authentication_classes = [TokenAuthentication, SessionAuthentication]
     pagination_class = StoreViewsPagination
     http_method_names = ["get", "post", "put", "patch", "delete"]
+    parser_classes = [TypeValidationParser]
 
     def get_queryset(self):
         return get_user_stores(self.request.user)

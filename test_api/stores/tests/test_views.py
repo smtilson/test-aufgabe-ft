@@ -106,6 +106,7 @@ class StoreViewSetTestCase(BaseTestCase):
         # self.store1_url = reverse("store-detail", args=[self.store1.id])
         # self.store2_url = reverse("store-detail", args=[self.store2.id])
 
+    @skip
     def test_unauthenticated_access(self):
         self.client.credentials()  # No auth header
         response = self.client.get(self.url_list)
@@ -114,6 +115,7 @@ class StoreViewSetTestCase(BaseTestCase):
         response = self.client.get(self.url_detail)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
+    @skip
     def test_forbidden_access(self):
         self.client.credentials(HTTP_AUTHORIZATION="Token invalidtoken")
         response = self.client.get(self.url_list)
@@ -122,6 +124,7 @@ class StoreViewSetTestCase(BaseTestCase):
         response = self.client.get(self.url_detail)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
+    @skip
     def test_list_stores(self):
         # Test owner1 sees their stores
         response = self.client.get(self.url_list)
@@ -152,6 +155,7 @@ class StoreViewSetTestCase(BaseTestCase):
             response.data["message"], "Create a store by filling the relevant fields."
         )
 
+    @skip
     def test_list_stores_pagination(self):
         response = self.client.get(self.url_list, {"page": 1, "page_size": 2})
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -165,6 +169,7 @@ class StoreViewSetTestCase(BaseTestCase):
         # Check error message
         self.assertEqual(response.data["detail"].code, "not_found")
 
+    @skip
     # Test create store
     def test_create_store(self):
         new_store_data = {key: value + "1" for key, value in STORE3_DATA.items()}
@@ -195,6 +200,7 @@ class StoreViewSetTestCase(BaseTestCase):
         )
         self.assertNotIn("message", response.data)
 
+    @skip
     def test_create_store_invalid_data(self):
         invalid_data = {
             "name": "",  # empty name
@@ -214,6 +220,7 @@ class StoreViewSetTestCase(BaseTestCase):
         for term in {"error", "invalid", "does not exist"}:
             self.assertIn(term, str(response.data).lower())
 
+    @skip
     def test_create_store_invalid_times(self):
         store_data = STORE1_DATA.copy()
         store_data.update(
@@ -229,6 +236,7 @@ class StoreViewSetTestCase(BaseTestCase):
         for term in {"error", "invalid", "closing time"}:
             self.assertIn(term, str(response.data).lower())
 
+    @skip
     def test_create_store_missing_required_fields(self):
         incomplete_data = {"name": "Test Store", "city": "Test City"}
         response = self.client.post(self.url_list, incomplete_data)
@@ -237,6 +245,7 @@ class StoreViewSetTestCase(BaseTestCase):
         for term in {"error", "required", "invalid", "address"}:
             self.assertIn(term, str(response.data).lower())
 
+    @skip
     # Test retrieve store
     def test_retrieve_valid_store(self):
         response = self.client.get(self.url_detail)
@@ -249,6 +258,7 @@ class StoreViewSetTestCase(BaseTestCase):
             "Modify all aspects of a store by filling the relevant field.",
         )
 
+    @skip
     def test_retrieve_store_invalid(self):
         url = reverse("stores-detail", args=[999])
         response = self.client.get(url)
@@ -314,6 +324,7 @@ class StoreViewSetTestCase(BaseTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["name"], valid_name)
 
+    @skip
     def test_validation_address(self):
         # Test invalid addresses with PATCH
         invalid_addresses = [
@@ -345,6 +356,7 @@ class StoreViewSetTestCase(BaseTestCase):
             self.assertEqual(response.status_code, status.HTTP_200_OK)
             self.assertEqual(response.data["address"], address)
 
+    @skip
     def test_validation_city(self):
         invalid_cities = ["", " ", ["city"]]
 

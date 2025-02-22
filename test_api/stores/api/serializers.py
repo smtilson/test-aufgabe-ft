@@ -66,7 +66,6 @@ class StoreSerializer(serializers.ModelSerializer):
         return instance
 
     def to_internal_value(self, data):
-        self.check_string_or_int(data)
         self.check_unknown_fields(data)
         self.check_empty_update(data)
         self.check_required_fields(data)
@@ -87,17 +86,6 @@ class StoreSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {field: "This field is not recognized." for field in unknown_fields}
             )
-
-    def check_string_or_int(self, data):
-        string_fields = ["name", "address", "city", "state_abbrv"]
-        allowed_types = {str, int}
-
-        check_fields = [field for field in string_fields if field in data]
-        for field in check_fields:
-            print("checking field: ", field)
-            if type(data[field]) not in allowed_types:
-                raise serializers.ValidationError({field: "Not a valid string"})
-            print(f"{data[field]} is {type(data[field]).__name__}")
 
     def check_required_fields(self, data):
         if not self.is_creation():
