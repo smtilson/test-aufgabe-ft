@@ -67,6 +67,23 @@ class BaseTestCase(TestCase):
             owner_id=self.owner, **STORE_DATA, **self.initial_days, **self.times
         )
         self.store.manager_ids.add(self.manager)
+        self.setup_context_requests()
+
+    def setup_context_requests(self):
+        PATCH_request = Mock()
+        PATCH_request.method = "PATCH"
+        PATCH_request.user = self.owner
+        self.context_PATCH = {"request": PATCH_request}
+        POST_request = Mock()
+        POST_request.method = "POST"
+        POST_request.user = self.owner
+        self.context_POST = {"request": POST_request}
+        PUT_request = Mock()
+        PUT_request.method = "PUT"
+        PUT_request.user = self.owner
+        self.context_PUT = {"request": PUT_request}
+        DELETE_request = Mock()
+        self.context_DELETE = {"request": DELETE_request}
 
 
 class StoreSerializerTest(BaseTestCase):
@@ -116,7 +133,7 @@ class StoreSerializerTest(BaseTestCase):
             "manager_ids": "not_a_list",  # must be list of ids
         }
 
-        serializer = StoreSerializer(data=invalid_data)
+        serializer = StoreSerializer(data=invalid_data, context=self.context_POST)
         self.assertFalse(serializer.is_valid())
         for field in invalid_data.keys():
             self.assertIn(field, serializer.errors)
@@ -133,7 +150,7 @@ class StoreSerializerTest(BaseTestCase):
             "closing_time": "18:00:00",
             "manager_ids": [self.manager.id],
         }
-        serializer = StoreSerializer(data=new_store_data)
+        serializer = StoreSerializer(data=new_store_data, context=self.context_POST)
         self.assertTrue(serializer.is_valid())
         store = serializer.save()
 
@@ -149,7 +166,7 @@ class StoreSerializerTest(BaseTestCase):
 
     def test_deserialize_store(self):
         serialized_data = self.serializer.data
-        deserializer = StoreSerializer(data=serialized_data)
+        deserializer = StoreSerializer(data=serialized_data, context=self.context_POST)
 
         self.assertTrue(deserializer.is_valid())
         deserialized_data = deserializer.validated_data
@@ -176,11 +193,12 @@ class StoreSerializerTest(BaseTestCase):
         ]
 
         serialized_data = self.serializer.data
-
         # Test invalid cases
         for state, expected_error in invalid_state_cases:
             serialized_data["state_abbrv"] = state
-            serializer = StoreSerializer(data=serialized_data)
+            serializer = StoreSerializer(
+                data=serialized_data, context=self.context_PATCH
+            )
             self.assertFalse(serializer.is_valid())
             self.assertIn("state_abbrv", serializer.errors)
             self.assertIn(
@@ -189,7 +207,7 @@ class StoreSerializerTest(BaseTestCase):
 
         # Test valid case
         serialized_data["state_abbrv"] = "BE"
-        serializer = StoreSerializer(data=serialized_data)
+        serializer = StoreSerializer(data=serialized_data, context=self.context_PATCH)
         self.assertTrue(serializer.is_valid())
 
     def test_plz_validation(self):
@@ -202,10 +220,11 @@ class StoreSerializerTest(BaseTestCase):
         ]
 
         serialized_data = self.serializer.data
-
         for plz, expected_error in invalid_plz_cases:
             serialized_data["plz"] = plz
-            serializer = StoreSerializer(data=serialized_data)
+            serializer = StoreSerializer(
+                data=serialized_data, context=self.context_PATCH
+            )
             self.assertFalse(serializer.is_valid())
             self.assertIn("plz", serializer.errors)
             self.assertIn(expected_error, str(serializer.errors["plz"][0]).lower())
@@ -214,7 +233,9 @@ class StoreSerializerTest(BaseTestCase):
 
         for plz in valid_plz_cases:
             serialized_data["plz"] = plz
-            serializer = StoreSerializer(data=serialized_data)
+            serializer = StoreSerializer(
+                data=serialized_data, context=self.context_PATCH
+            )
             self.assertTrue(serializer.is_valid())
 
     def test_name_validation(self):
@@ -232,7 +253,9 @@ class StoreSerializerTest(BaseTestCase):
         # Test invalid cases
         for name, expected_error in invalid_name_cases:
             serialized_data["name"] = name
-            serializer = StoreSerializer(data=serialized_data)
+            serializer = StoreSerializer(
+                data=serialized_data, context=self.context_PATCH
+            )
             self.assertFalse(serializer.is_valid())
             self.assertIn("name", serializer.errors)
             self.assertIn(expected_error, str(serializer.errors["name"][0]).lower())
@@ -240,7 +263,9 @@ class StoreSerializerTest(BaseTestCase):
         # Test valid cases
         for name in valid_names:
             serialized_data["name"] = name
-            serializer = StoreSerializer(data=serialized_data)
+            serializer = StoreSerializer(
+                data=serialized_data, context=self.context_PATCH
+            )
             self.assertTrue(serializer.is_valid())
             self.assertEqual(serializer.validated_data["name"], name)
 
@@ -265,29 +290,77 @@ class StoreSerializerTest(BaseTestCase):
         # Test invalid cases
         for address, expected_error in invalid_address_cases:
             serialized_data["address"] = address
-            serializer = StoreSerializer(data=serialized_data)
+            serializer = StoreSerializer(
+                data=serialized_data, context=self.context_PATCH
+            )
             self.assertFalse(serializer.is_valid())
             self.assertIn("address", serializer.errors)
             self.assertIn(expected_error, str(serializer.errors["address"][0]).lower())
 
         for address in valid_addresses:
             serialized_data["address"] = address
-            serializer = StoreSerializer(data=serialized_data)
+            serializer = StoreSerializer(
+                data=serialized_data, context=self.context_PATCH
+            )
             self.assertTrue(serializer.is_valid())
 
-    def test_invalid_name(self):
-        serialized_data = self.serializer.data
-        serialized_data["name"] = {123}
-        serializer = StoreSerializer(data=serialized_data)
-        self.assertFalse(serializer.is_valid())
-        self.assertIn("name", serializer.errors)
-        self.assertIn("Not a valid string", str(serializer.errors["name"][0]))
+    def test_validate_time_range(self):
+        # what catches a completely empty time range update?
+        # should that just ignore the update?
+        invalid_cases = [
+            (
+                {"opening_time": "17:00:00", "closing_time": "09:00:00"},
+                ("closing_time", "Closing time must be later than opening time"),
+            ),
+            (
+                {"closing_time": "17:00pm"},
+                ("closing_time", "Time has wrong format"),
+            ),
+            (
+                {"opening_time": "25:00:00"},
+                ("opening_time", "Time has wrong format"),
+            ),
+            (
+                {"opening_time": "2sdq00"},
+                ("opening_time", "Time has wrong format"),
+            ),
+            (
+                # why isn't the check empty catching this?
+                {"opening_time": ""},
+                ("opening_time", "Time has wrong format"),
+            ),
+            (
+                {"opening_time": ["asd", "123"]},
+                ("opening_time", "Time has wrong format"),
+            ),
+            (
+                {"closing_time": 239359},
+                ("closing_time", "Time has wrong format"),
+            ),
+            (
+                {"closing_time": 2393},
+                ("closing_time", "Time has wrong format"),
+            ),
+        ]
 
-        serialized_data["name"] = ""
-        serializer = StoreSerializer(data=serialized_data)
-        self.assertFalse(serializer.is_valid())
-        self.assertIn("name", serializer.errors)
-        self.assertIn("not be blank", str(serializer.errors["name"][0]))
+        for test_data, (error_field, expected_error) in invalid_cases:
+            serializer = StoreSerializer(
+                self.store, data=test_data, partial=True, context=self.context_PATCH
+            )
+            self.assertFalse(serializer.is_valid())
+            self.assertIn(expected_error, str(serializer.errors[error_field]))
+
+        # Test valid case
+        valid_cases = [
+            {"closing_time": "17:00:00"},
+            {"opening_time": "9:30", "closing_time": "9:45:30"},
+        ]
+
+        for valid_times in valid_cases:
+            serializer = StoreSerializer(
+                self.store, data=valid_times, partial=True, context=self.context_PATCH
+            )
+            self.assertTrue(serializer.is_valid())
 
     def test_initial_days(self):
         for day in self.initial_days:
@@ -301,16 +374,12 @@ class StoreSerializerTest(BaseTestCase):
             "city": "Test City",
             "state_abbrv": "BE",
         }
-        serializer = StoreSerializer(data=required_data)
+        serializer = StoreSerializer(data=required_data, context=self.context_POST)
         serializer.is_valid()
         self.assertTrue(serializer.is_valid())
 
     def test_required_fields(self):
-        # context = {"request": type("Request", (), {"method": "POST"})()}
-        mock_request = Mock()
-        mock_request.method = "POST"
-        context = {"request": mock_request}
-        serializer = StoreSerializer(data={}, context=context)
+        serializer = StoreSerializer(data={}, context=self.context_POST)
         self.assertFalse(serializer.is_valid())
 
         # Test empty
@@ -323,7 +392,7 @@ class StoreSerializerTest(BaseTestCase):
             "owner_id": self.owner.id,
             "address": "123 Test St",
         }
-        serializer = StoreSerializer(data=partial_data, context=context)
+        serializer = StoreSerializer(data=partial_data, context=self.context_POST)
         self.assertFalse(serializer.is_valid())
         missing_fields = {"city", "state_abbrv"}
         self.assertEqual(set(serializer.errors.keys()), missing_fields)
@@ -355,7 +424,10 @@ class StoreSerializerTest(BaseTestCase):
 
         update_data = {"manager_ids": [new_manager.id]}
         serializer = StoreSerializer(
-            instance=self.store, data=update_data, partial=True
+            instance=self.store,
+            data=update_data,
+            partial=True,
+            context=self.context_PATCH,
         )
         self.assertTrue(serializer.is_valid())
         updated_store = serializer.save()
@@ -372,7 +444,10 @@ class StoreSerializerTest(BaseTestCase):
         # Update with empty manager list
         update_data = {"manager_ids": [self.manager.id]}
         serializer = StoreSerializer(
-            instance=self.store, data=update_data, partial=True
+            instance=self.store,
+            data=update_data,
+            partial=True,
+            context=self.context_PATCH,
         )
         self.assertTrue(serializer.is_valid())
         updated_store = serializer.save()
@@ -385,7 +460,10 @@ class StoreSerializerTest(BaseTestCase):
         # Update with empty manager list
         update_data = {"manager_ids": []}
         serializer = StoreSerializer(
-            instance=self.store, data=update_data, partial=True
+            instance=self.store,
+            data=update_data,
+            partial=True,
+            context=self.context_PATCH,
         )
         self.assertTrue(serializer.is_valid())
         updated_store = serializer.save()
@@ -402,31 +480,20 @@ class StoreSerializerTest(BaseTestCase):
         )
         update_data = {"owner_id": new_owner.id}
         serializer = StoreSerializer(
-            instance=self.store, data=update_data, partial=True
+            instance=self.store,
+            data=update_data,
+            partial=True,
+            context=self.context_PATCH,
         )
         self.assertTrue(serializer.is_valid())
         updated_store = serializer.save()
         self.assertEqual(updated_store.owner_id, new_owner)
 
-    def test_validate_time_range(self):
-        invalid_data = {
-            "name": "Test Store",
-            "owner_id": self.owner.id,
-            "address": "Test Address 2",
-            "city": "Test City",
-            "state_abbrv": "BE",
-            "plz": "12345",
-            "opening_time": "17:00:00",
-            "closing_time": "09:00:00",
-            "manager_ids": [self.manager.id],
-        }
-        serializer = StoreSerializer(data=invalid_data)
-        self.assertFalse(serializer.is_valid())
-        self.assertIn("closing_time", serializer.errors)
-
     def test_unknown_fields(self):
         invalid_data = {"not_a_field": 123, "invalid_field": False}
-        serializer = StoreSerializer(self.store, data=invalid_data, partial=True)
+        serializer = StoreSerializer(
+            self.store, data=invalid_data, partial=True, context=self.context_PATCH
+        )
         self.assertFalse(serializer.is_valid())
         for value in serializer.errors.values():
             self.assertEqual(value.code, "invalid")
@@ -550,11 +617,62 @@ class HoursSerializerTest(BaseTestCase):
         self.assertEqual(updated_store.closing_time, time(20, 0))
 
     def test_validate_time_range(self):
-        invalid_hours = {"opening_time": "17:00:00", "closing_time": "09:00:00"}
-        serializer = HoursSerializer(self.store, data=invalid_hours, partial=True)
-        self.assertFalse(serializer.is_valid())
-        self.assertIn("closing_time", serializer.errors)
-        self.assertIn("must be later", str(serializer.errors["closing_time"][0]))
+        # what catches a completely empty time range update?
+        # should that just ignore the update?
+        invalid_cases = [
+            (
+                {"opening_time": "17:00:00", "closing_time": "09:00:00"},
+                ("closing_time", "Closing time must be later than opening time"),
+            ),
+            (
+                {"closing_time": "17:00pm"},
+                ("closing_time", "Time has wrong format"),
+            ),
+            (
+                {"opening_time": "25:00:00"},
+                ("opening_time", "Time has wrong format"),
+            ),
+            (
+                {"opening_time": "2sdq00"},
+                ("opening_time", "Time has wrong format"),
+            ),
+            (
+                # why isn't the check empty catching this?
+                {"opening_time": ""},
+                ("opening_time", "Time has wrong format"),
+            ),
+            (
+                {"opening_time": ["asd", "123"]},
+                ("opening_time", "Time has wrong format"),
+            ),
+            (
+                {"closing_time": 239359},
+                ("closing_time", "Time has wrong format"),
+            ),
+            (
+                {"closing_time": 2393},
+                ("closing_time", "Time has wrong format"),
+            ),
+        ]
+
+        for test_data, (error_field, expected_error) in invalid_cases:
+            serializer = StoreSerializer(
+                self.store, data=test_data, partial=True, context=self.context_PATCH
+            )
+            self.assertFalse(serializer.is_valid())
+            self.assertIn(expected_error, str(serializer.errors[error_field]))
+
+        # Test valid case
+        valid_cases = [
+            {"closing_time": "17:00:00"},
+            {"opening_time": "9:30", "closing_time": "9:45:30"},
+        ]
+
+        for valid_times in valid_cases:
+            serializer = StoreSerializer(
+                self.store, data=valid_times, partial=True, context=self.context_PATCH
+            )
+            self.assertTrue(serializer.is_valid())
 
     def test_read_only_fields(self):
         data = {

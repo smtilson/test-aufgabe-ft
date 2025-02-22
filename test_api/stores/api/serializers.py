@@ -103,6 +103,14 @@ class StoreSerializer(serializers.ModelSerializer):
                 {"closing_time": "Closing time must be later than opening time"}
             )
 
+    def check_empty_update(self, data):
+        if self.context["request"].method == "PATCH":
+            for field_name, value in data.items():
+                if isinstance(value, str) and not value.strip():
+                    raise serializers.ValidationError(
+                        {field_name: "You cannot update a field to be empty"}
+                    )
+
     def validate_state_abbrv(self, value):
         if value not in Store.STATES:
             raise serializers.ValidationError(
@@ -137,9 +145,10 @@ class StoreSerializer(serializers.ModelSerializer):
         return value
 
     def validate(self, data):
+        self.check_empty_update(data)
         self.check_required_fields(data)
-        data = super().validate(data)
         self.check_open_closing_times(data)
+        data = super().validate(data)
         return data
 
 
