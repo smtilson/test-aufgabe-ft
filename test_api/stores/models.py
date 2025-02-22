@@ -45,7 +45,7 @@ class Store(models.Model):
     address = models.CharField(max_length=255)
     city = models.CharField(max_length=255)
     state_abbrv = models.CharField(max_length=2, choices=STATES.items())
-    plz = models.CharField(max_length=5)
+    plz = models.CharField(max_length=5, blank=True)
     montag = models.BooleanField(default=False)
     dienstag = models.BooleanField(default=False)
     mittwoch = models.BooleanField(default=False)
@@ -58,18 +58,22 @@ class Store(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        ordering = ["id"]
+
     @property
     def location(self):
         return f"{self.address}, {self.city}, {self.state_abbrv}"
 
     @property
     def state(self):
-        return self.STATE_CHOICES[self.state_abbrv]
+        return self.STATES[self.state_abbrv]
 
     @property
     def days_open(self):
         return str([day.capitalize() for day in DAYS_OF_WEEK if getattr(self, day)])
 
+    # I think this
     @property
     def day_data(self):
         return {day: getattr(self, day) for day in DAYS_OF_WEEK}

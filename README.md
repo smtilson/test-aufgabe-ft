@@ -52,13 +52,15 @@ At Foodtracks each of our customers has their own DB.
  - Fix: Override the field and change the related name attribute.
 - Error with field named _state. Led to error regarding string not having a certain attribute. I guess _state is a reserved term in Django ro Django Rest Framework.
  - Fix: Rename the field to state_abbrv.
-- Browsable API: when adding a day to the many to many open_days field, it replaces the day completely instead of adding it.
+- Browsable API: when adding a day to the many to many days_of_operation field, it replaces the day completely instead of adding it.
 - Passowrd not being hashed wia the CustomUserViewSet
  - Fix: Use the set_password and create_user methods in the relevant serializer.
 - Not adding managers properly via rest form.
  - Fix: Overwrite update method of relevant serializer.
 - Test for delete user is failing to get the right status code.
  - Fix: Add field HTTP_ACCEPT: application/json to the client in setUp method.
+- Django can't find tests.
+ - Fix: add __init__.py to the tests folder.
 ## References
 ### AI support
 - [ChatGPT](https://chat.openai.com/)

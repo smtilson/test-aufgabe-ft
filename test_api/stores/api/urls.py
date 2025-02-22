@@ -2,8 +2,9 @@ from .views import (
     StoreViewSet,
     StoreManagersView,
     StoreDaysView,
-    OwnerView,
     StoreHoursView,
+    StoreDaysListView,
+    StoreDaysDetailView,
 )
 from rest_framework.routers import DefaultRouter
 from django.urls import path, include
@@ -13,8 +14,14 @@ router.register("stores", StoreViewSet, basename="stores")
 
 urlpatterns = [
     path("", include(router.urls)),
-    path("owner/", OwnerView.as_view()),
-    path("stores/<int:pk>/days/", StoreDaysView.as_view()),
-    path("stores/<int:pk>/hours/", StoreHoursView.as_view()),
-    path("stores/<int:pk>/managers/", StoreManagersView.as_view()),
+    path("days-list/", StoreDaysView.as_view(), name="store-days-list"),
+    path("days-detail/<int:pk>/", StoreDaysView.as_view(), name="store-days-detail"),
+    path("hours-list/", StoreHoursView.as_view(), name="store-hours-list"),
+    path("hours-detail/<int:pk>/", StoreHoursView.as_view(), name="store-hours-detail"),
+    path("managers-list/", StoreManagersView.as_view(), name="store-managers-list"),
+    path(
+        "managers-detail/<int:pk>/",
+        StoreManagersView.as_view(),
+        name="store-managers-detail",
+    ),
 ]
