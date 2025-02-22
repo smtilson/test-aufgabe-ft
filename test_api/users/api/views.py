@@ -1,5 +1,6 @@
 from ..models import CustomUser
 from .serializers import CustomUserSerializer, SignUpSerializer, LoginSerializer
+from .filters import UserFilter
 from rest_framework import status, filters
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.viewsets import ModelViewSet
@@ -17,9 +18,10 @@ class CustomUserViewSet(ModelViewSet):
     permission_classes = [IsAuthenticated]
     queryset = CustomUser.objects.all().order_by("id")
     serializer_class = CustomUserSerializer
-    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
-    search_fields = ["first_name", "last_name", "email"]
-    ordering_fields = ["first_name", "last_name", "email"]
+    # filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    filterset_class = UserFilter
+    # search_fields = ["first_name", "last_name", "email"]
+    # ordering_fields = ["first_name", "last_name", "email"]
 
 
 class SignupView(CreateAPIView):
