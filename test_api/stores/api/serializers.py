@@ -66,6 +66,16 @@ class StoreSerializer(serializers.ModelSerializer):
         return instance
 
     def to_internal_value(self, data):
+        self.check_string_or_int(data)
+        self.check_unknown_fields(data)
+        self.check_empty_update(data)
+        self.check_required_fields(data)
+        return super().to_internal_value(data)
+
+    def is_creation(self):
+        return self.context.get("request") and self.context["request"].method == "POST"
+
+    def check_unknown_fields(self, data):
         # Get the known fields from the serializer
         known_fields = set(self.fields.keys())
         # Get the incoming fields from the data
@@ -78,10 +88,16 @@ class StoreSerializer(serializers.ModelSerializer):
                 {field: "This field is not recognized." for field in unknown_fields}
             )
 
-        return super().to_internal_value(data)
+    def check_string_or_int(self, data):
+        string_fields = ["name", "address", "city", "state_abbrv"]
+        allowed_types = {str, int}
 
-    def is_creation(self):
-        return self.context.get("request") and self.context["request"].method == "POST"
+        check_fields = [field for field in string_fields if field in data]
+        for field in check_fields:
+            print("checking field: ", field)
+            if type(data[field]) not in allowed_types:
+                raise serializers.ValidationError({field: "Not a valid string"})
+            print(f"{data[field]} is {type(data[field]).__name__}")
 
     def check_required_fields(self, data):
         if not self.is_creation():
@@ -104,8 +120,15 @@ class StoreSerializer(serializers.ModelSerializer):
             )
 
     def check_empty_update(self, data):
+        # print("check empty called")
+        # print(self.context["request"])
+        # print(self.context["request"].method)
         if self.context["request"].method == "PATCH":
+            #   print("hit patch block")
+
+            #  print("data: ", data)
             for field_name, value in data.items():
+                #     print(field_name, "|", value, "|", type(value))
                 if isinstance(value, str) and not value.strip():
                     raise serializers.ValidationError(
                         {field_name: "You cannot update a field to be empty"}
@@ -120,9 +143,7 @@ class StoreSerializer(serializers.ModelSerializer):
 
     def validate_name(self, value):
         # something is catching this error before I get to here.
-        if not isinstance(value, str):
-            raise serializers.ValidationError("Name must be a string.")
-        elif not value.strip():
+        if not value.strip():
             raise serializers.ValidationError("Name cannot be blank.")
         return value
 

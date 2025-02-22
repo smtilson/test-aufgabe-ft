@@ -90,7 +90,9 @@ class BaseTestCase(APITestCase):
         self.client.credentials(
             HTTP_AUTHORIZATION=f"Token {self.token1.key}",
         )
+        clear_url_caches()
         self.client.defaults["HTTP_ACCEPT"] = "application/json"
+        self.client.defaults["format"] = "json"
 
 
 # StoreViewSet tests:
@@ -254,6 +256,7 @@ class StoreViewSetTestCase(BaseTestCase):
         self.assertEqual(response.data["detail"].code, "not_found")
 
     # Test update store
+
     def test_update_store(self):
         # Try to update all fields
         response = self.client.patch(self.url_detail, STORE3_DATA)
@@ -290,33 +293,59 @@ class StoreViewSetTestCase(BaseTestCase):
         for term in terms:
             self.assertIn(term, str(response.data).lower())
 
-    def test_update_store_name_validation(self):
-        invalid_names = ["", " ", ["name"]]
+    def test_validation_name(self):
+        invalid_names = [
+            ("", "cannot update a field to be empty"),
+            (" ", "cannot update a field to be empty"),
+            (["name"], "not a valid string"),
+        ]
 
-        for name in invalid_names:
+        for name, expected_error in invalid_names:
+            print(f"\nTesting name: {name}")
+            print(f"Expected error: {expected_error}")
             response = self.client.patch(self.url_detail, {"name": name})
+            print(f"Response data: {response.data}")
+
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-            self.assertIn("name", response.data)
+            self.assertIn(expected_error, str(response.data["name"]).lower())
 
         valid_name = "Updated Store Name"
         response = self.client.patch(self.url_detail, {"name": valid_name})
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["name"], valid_name)
 
-    def test_update_store_address_validation(self):
-        invalid_addresses = ["", " ", ["address"]]
+    def test_validation_address(self):
+        # Test invalid addresses with PATCH
+        invalid_addresses = [
+            ("", "you cannot update a field to be empty"),  # From check_empty_update
+            (" ", "you cannot update a field to be empty"),  # From check_empty_update
+            (["123 Main St"], "not a valid string"),  # DRF type validation
+            ({"street": "123 Main"}, "not a valid string"),  # DRF type validation
+            ("OnlyText", "must contain both numbers and text"),  # From validate_address
+            ("12345", "must contain both numbers and text"),  # From validate_address
+            (12345, "must contain both numbers and text"),  # From validate_address
+        ]
 
-        for address in invalid_addresses:
-            response = self.client.patch(self.url_detail, {"address": address})
+        for address, expected_error in invalid_addresses:
+            response = self.client.patch(
+                self.url_detail, {"address": address}, format="json"
+            )
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-            self.assertIn("address", response.data)
+            self.assertIn(expected_error, str(response.data["address"]).lower())
 
-        valid_address = "456 New Street"
-        response = self.client.patch(self.url_detail, {"address": valid_address})
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["address"], valid_address)
+        # Test valid addresses with PATCH
+        valid_addresses = [
+            "123 Main Street",
+            "Friedrichstraße 123",
+            "Apartment 4B, 567 Park Road",
+        ]
 
-    def test_update_store_city_validation(self):
+        for address in valid_addresses:
+            response = self.client.patch(self.url_detail, {"address": address})
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertEqual(response.data["address"], address)
+
+    def test_validation_city(self):
         invalid_cities = ["", " ", ["city"]]
 
         for city in invalid_cities:
@@ -329,7 +358,7 @@ class StoreViewSetTestCase(BaseTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["city"], valid_city)
 
-    def test_update_store_state_validation(self):
+    def test_validation_state(self):
         print("testing view for state abbreviation validation")
         invalid_states = [["BE", "HH"]]  # ["XX", "ABC", "A", "12", ["BE"]]
 
@@ -344,7 +373,7 @@ class StoreViewSetTestCase(BaseTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["state_abbrv"], valid_state)
 
-    def test_plz_validation(self):
+    def test_validation_plz(self):
         invalid_plz_values = [
             "123",
             "1234567",
