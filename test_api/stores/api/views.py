@@ -36,6 +36,7 @@ class StoreViewSet(ModelViewSet):
     permission_classes = [IsAuthenticated]
     authentication_classes = [TokenAuthentication, SessionAuthentication]
     pagination_class = StoreViewsPagination
+    http_method_names = ["get", "post", "put", "patch", "delete"]
 
     def get_queryset(self):
         return get_user_stores(self.request.user)
@@ -64,6 +65,7 @@ class StoreDaysView(
     permission_classes = [IsAuthenticated]
     authentication_classes = [TokenAuthentication, SessionAuthentication]
     pagination_class = StoreViewsPagination
+    http_method_names = ["get", "put", "patch"]
 
     def __init__(self, *args, **kwargs):
         # print("View initialized")
@@ -96,6 +98,7 @@ class StoreHoursView(GenericAPIView, List, Retrieve, Update):
     permission_classes = [IsAuthenticated]
     authentication_classes = [TokenAuthentication, SessionAuthentication]
     pagination_class = StoreViewsPagination
+    http_method_names = ["get", "put", "patch"]
 
     def get_queryset(self):
         return get_user_stores(self.request.user)
@@ -115,6 +118,9 @@ class StoreHoursView(GenericAPIView, List, Retrieve, Update):
         response.data["message"] = msg
         return response
 
+    def patch(self, request, *args, **kwargs):
+        return self.partial_update(request, *args, **kwargs)
+
 
 # protect this with owner permissions
 class StoreManagersView(GenericAPIView, List, Retrieve, Update):
@@ -122,6 +128,7 @@ class StoreManagersView(GenericAPIView, List, Retrieve, Update):
     permission_classes = [IsAuthenticated]
     authentication_classes = [TokenAuthentication, SessionAuthentication]
     pagination_class = StoreViewsPagination
+    http_method_names = ["get", "put", "patch"]
 
     def get_queryset(self):
         return get_user_stores(self.request.user)
@@ -142,6 +149,9 @@ class StoreManagersView(GenericAPIView, List, Retrieve, Update):
         msg += " Selecting a user that is already a manager will remove their manager status."
         response.data["message"] = msg
         return response
+
+    def patch(self, request, *args, **kwargs):
+        return self.partial_update(request, *args, **kwargs)
 
 
 # protect this with manager permissions

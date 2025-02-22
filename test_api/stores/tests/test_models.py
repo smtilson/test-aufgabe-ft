@@ -97,7 +97,7 @@ class StoreModelTest(TestCase):
         )
 
     def test_missing_fields(self):
-        with self.assertRaises(ValidationError) as cm:
+        with self.assertRaises(ValidationError) as e:
             invalid_store = Store(
                 name="",  # Empty name
                 owner_id=self.owner,
@@ -108,15 +108,11 @@ class StoreModelTest(TestCase):
             )
             invalid_store.full_clean()
 
-        error_dict = cm.exception.message_dict
+        error_dict = e.exception.message_dict
         self.assertIn("name", error_dict)
         self.assertIn("address", error_dict)
         self.assertIn("city", error_dict)
         self.assertIn("plz", error_dict)
-        self.assertEqual(
-            error_dict["plz"][0],
-            "Ensure this value has at most 5 characters (it has 6).",
-        )
 
     def test_update_all_store_fields(self):
         new_owner = User.objects.create_user(

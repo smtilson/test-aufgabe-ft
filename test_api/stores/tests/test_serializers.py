@@ -1,5 +1,6 @@
 from django.test import TestCase
 from django.contrib.auth import get_user_model
+from rest_framework.serializers import ValidationError
 from datetime import time
 from unittest import skip
 from unittest.mock import Mock
@@ -166,31 +167,113 @@ class StoreSerializerTest(BaseTestCase):
         closing_time = str(getattr(self.store, "closing_time"))
         self.assertEqual(str(deserialized_data["closing_time"]), closing_time)
 
-    def test_invalid_state_abbreviation(self):
+    def test_state_abbrv_validation(self):
+        invalid_state_cases = [
+            (["BE"], "not a valid string"),
+            ("XX", "invalid state"),
+            (["BE", "HH"], "not a valid string"),
+            (12345, "no more than 2"),
+        ]
+
         serialized_data = self.serializer.data
-        serialized_data["state_abbrv"] = "XX"
 
+        # Test invalid cases
+        for state, expected_error in invalid_state_cases:
+            serialized_data["state_abbrv"] = state
+            serializer = StoreSerializer(data=serialized_data)
+            self.assertFalse(serializer.is_valid())
+            self.assertIn("state_abbrv", serializer.errors)
+            self.assertIn(
+                expected_error, str(serializer.errors["state_abbrv"][0]).lower()
+            )
+
+        # Test valid case
+        serialized_data["state_abbrv"] = "BE"
         serializer = StoreSerializer(data=serialized_data)
-        self.assertFalse(serializer.is_valid())
-        self.assertIn("state_abbrv", serializer.errors)
-        self.assertIn(
-            "is not a valid state abbreviation",
-            str(serializer.errors["state_abbrv"][0]),
-        )
+        self.assertTrue(serializer.is_valid())
 
-    def test_invalid_plz(self):
+    def test_plz_validation(self):
+        invalid_plz_cases = [
+            ("123", "exactly 5 digits"),
+            ("123456", "exactly 5 digits"),
+            ("123ab", "only numbers"),
+            ("", "may not be blank"),
+            (["12345"], "not a valid string"),  # single non-string case
+        ]
+
         serialized_data = self.serializer.data
-        serialized_data["plz"] = "123ab"
-        serializer = StoreSerializer(data=serialized_data)
-        self.assertFalse(serializer.is_valid())
-        self.assertIn("plz", serializer.errors)
-        self.assertIn("only numbers", str(serializer.errors["plz"][0]))
 
-        serialized_data["plz"] = "123456"
-        serializer = StoreSerializer(data=serialized_data)
-        self.assertFalse(serializer.is_valid())
-        self.assertIn("plz", serializer.errors)
-        self.assertIn("exactly 5 digits", str(serializer.errors["plz"][0]))
+        for plz, expected_error in invalid_plz_cases:
+            serialized_data["plz"] = plz
+            serializer = StoreSerializer(data=serialized_data)
+            self.assertFalse(serializer.is_valid())
+            self.assertIn("plz", serializer.errors)
+            self.assertIn(expected_error, str(serializer.errors["plz"][0]).lower())
+
+        valid_plz_cases = ["12345", "01234", 99999]
+
+        for plz in valid_plz_cases:
+            serialized_data["plz"] = plz
+            serializer = StoreSerializer(data=serialized_data)
+            self.assertTrue(serializer.is_valid())
+
+    def test_name_validation(self):
+        invalid_name_cases = [
+            (["Store Name"], "not a valid string"),
+            ("", "may not be blank"),
+            (" ", "may not be blank"),
+            ({"name": "Store"}, "not a valid string"),
+        ]
+
+        valid_names = ["Test Store", "Store 123", "Café Berlin", "Store-Name"]
+
+        serialized_data = self.serializer.data
+
+        # Test invalid cases
+        for name, expected_error in invalid_name_cases:
+            serialized_data["name"] = name
+            serializer = StoreSerializer(data=serialized_data)
+            self.assertFalse(serializer.is_valid())
+            self.assertIn("name", serializer.errors)
+            self.assertIn(expected_error, str(serializer.errors["name"][0]).lower())
+
+        # Test valid cases
+        for name in valid_names:
+            serialized_data["name"] = name
+            serializer = StoreSerializer(data=serialized_data)
+            self.assertTrue(serializer.is_valid())
+            self.assertEqual(serializer.validated_data["name"], name)
+
+    def test_address_validation(self):
+        invalid_address_cases = [
+            (["123 Main St"], "not a valid string"),
+            ("", "may not be blank"),
+            (" ", "may not be blank"),
+            ({"street": "123 Main"}, "not a valid string"),
+            (12345, "contain both numbers and text"),
+        ]
+
+        valid_addresses = [
+            "123 Main Street",
+            "Friedrichstraße 123",
+            "Apartment 4B, 567 Park Road",
+            "Unit 12-345",
+        ]
+
+        serialized_data = self.serializer.data
+
+        # Test invalid cases
+        for address, expected_error in invalid_address_cases:
+            serialized_data["address"] = address
+            serializer = StoreSerializer(data=serialized_data)
+            self.assertFalse(serializer.is_valid())
+            self.assertIn("address", serializer.errors)
+            self.assertIn(expected_error, str(serializer.errors["address"][0]).lower())
+
+        for address in valid_addresses:
+            serialized_data["address"] = address
+            serializer = StoreSerializer(data=serialized_data)
+            self.assertTrue(serializer.is_valid())
 
     def test_invalid_name(self):
         serialized_data = self.serializer.data
@@ -329,7 +412,7 @@ class StoreSerializerTest(BaseTestCase):
         invalid_data = {
             "name": "Test Store",
             "owner_id": self.owner.id,
-            "address": "Test Address",
+            "address": "Test Address 2",
             "city": "Test City",
             "state_abbrv": "BE",
             "plz": "12345",

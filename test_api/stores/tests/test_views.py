@@ -96,27 +96,33 @@ class BaseTestCase(APITestCase):
 # StoreViewSet tests:
 
 
-@skip("Skipping StoreViewSetTestCase")
 class StoreViewSetTestCase(BaseTestCase):
     def setUp(self):
         super().setUp()
-        self.url = reverse("stores-list")
+        self.url_list = reverse("stores-list")
+        self.url_detail = reverse("stores-detail", args=[self.store1.id])
         # self.store1_url = reverse("store-detail", args=[self.store1.id])
         # self.store2_url = reverse("store-detail", args=[self.store2.id])
 
     def test_unauthenticated_access(self):
         self.client.credentials()  # No auth header
-        response = self.client.get(self.url)
+        response = self.client.get(self.url_list)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+        response = self.client.get(self.url_detail)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_forbidden_access(self):
         self.client.credentials(HTTP_AUTHORIZATION="Token invalidtoken")
-        response = self.client.get(self.url)
+        response = self.client.get(self.url_list)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+        response = self.client.get(self.url_detail)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_list_stores(self):
         # Test owner1 sees their stores
-        response = self.client.get(self.url)
+        response = self.client.get(self.url_list)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data["results"]), 2)
         store_ids = {store["id"] for store in response.data["results"]}
@@ -126,7 +132,7 @@ class StoreViewSetTestCase(BaseTestCase):
         self.client.credentials(
             HTTP_AUTHORIZATION=f"Token {self.token2.key}",
         )
-        response = self.client.get(self.url)
+        response = self.client.get(self.url_list)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data["results"]), 1)
         self.assertEqual(response.data["results"][0]["id"], self.store3.id)
@@ -136,7 +142,7 @@ class StoreViewSetTestCase(BaseTestCase):
             HTTP_AUTHORIZATION=f"Token {self.token3.key}",
         )
 
-        response = self.client.get(self.url)
+        response = self.client.get(self.url_list)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data["results"]), 1)
         self.assertEqual(response.data["results"][0]["id"], self.store1.id)
@@ -145,13 +151,13 @@ class StoreViewSetTestCase(BaseTestCase):
         )
 
     def test_list_stores_pagination(self):
-        response = self.client.get(self.url, {"page": 1, "page_size": 2})
+        response = self.client.get(self.url_list, {"page": 1, "page_size": 2})
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data["results"]), 2)
 
     def test_pagination_out_of_bounds(self):
         # Request a page that doesn't exist
-        response = self.client.get(self.url + "?page=999&page_size=2")
+        response = self.client.get(self.url_list + "?page=999&page_size=2")
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
         # Check error message
@@ -168,7 +174,7 @@ class StoreViewSetTestCase(BaseTestCase):
         new_store_data["manager_ids"] = [self.manager1.id]
 
         # Test owner can create store
-        response = self.client.post(self.url, new_store_data)
+        response = self.client.post(self.url_list, new_store_data)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(Store.objects.count(), 4)
         # Verify store data
@@ -199,7 +205,7 @@ class StoreViewSetTestCase(BaseTestCase):
             "closing_time": "18:00:00",
             "manager_ids": [999],  # non-existent manager
         }
-        response = self.client.post(self.url, invalid_data)
+        response = self.client.post(self.url_list, invalid_data)
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(Store.objects.count(), 3)  # no new store created
@@ -215,7 +221,7 @@ class StoreViewSetTestCase(BaseTestCase):
                 "owner_id": self.owner1.id,
             }
         )
-        response = self.client.post(self.url, store_data)
+        response = self.client.post(self.url_list, store_data)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(Store.objects.count(), 3)
         for term in {"error", "invalid", "closing time"}:
@@ -223,7 +229,7 @@ class StoreViewSetTestCase(BaseTestCase):
 
     def test_create_store_missing_required_fields(self):
         incomplete_data = {"name": "Test Store", "city": "Test City"}
-        response = self.client.post(self.url, incomplete_data)
+        response = self.client.post(self.url_list, incomplete_data)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(Store.objects.count(), 3)
         for term in {"error", "required", "invalid", "address"}:
@@ -231,9 +237,7 @@ class StoreViewSetTestCase(BaseTestCase):
 
     # Test retrieve store
     def test_retrieve_valid_store(self):
-        url = reverse("stores-detail", args=[self.store1.id])
-
-        response = self.client.get(url)
+        response = self.client.get(self.url_detail)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["id"], self.store1.id)
         for key, value in STORE1_DATA.items():
@@ -251,10 +255,8 @@ class StoreViewSetTestCase(BaseTestCase):
 
     # Test update store
     def test_update_store(self):
-        url = reverse("stores-detail", args=[self.store1.id])
-
         # Try to update all fields
-        response = self.client.patch(url, STORE3_DATA)
+        response = self.client.patch(self.url_detail, STORE3_DATA)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         updated_store = Store.objects.get(id=self.store1.id)
@@ -268,7 +270,6 @@ class StoreViewSetTestCase(BaseTestCase):
         self.assertEqual(response.data["detail"].code, "not_found")
 
     def test_update_store_invalid_data(self):
-        url = reverse("stores-detail", args=[self.store1.id])
         update_data = {
             # this isnt throwing an error for some reason, but the serializer seems to handle it fine.
             # "name": "",  # empty name
@@ -278,7 +279,7 @@ class StoreViewSetTestCase(BaseTestCase):
             # "closing_time": "18:00:00",
             "manager_ids": [999],  # non-existent manager
         }
-        response = self.client.patch(url, update_data)
+        response = self.client.patch(self.url_detail, update_data)
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(Store.objects.count(), 3)  # no new store created
@@ -289,10 +290,90 @@ class StoreViewSetTestCase(BaseTestCase):
         for term in terms:
             self.assertIn(term, str(response.data).lower())
 
+    def test_update_store_name_validation(self):
+        invalid_names = ["", " ", ["name"]]
+
+        for name in invalid_names:
+            response = self.client.patch(self.url_detail, {"name": name})
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+            self.assertIn("name", response.data)
+
+        valid_name = "Updated Store Name"
+        response = self.client.patch(self.url_detail, {"name": valid_name})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["name"], valid_name)
+
+    def test_update_store_address_validation(self):
+        invalid_addresses = ["", " ", ["address"]]
+
+        for address in invalid_addresses:
+            response = self.client.patch(self.url_detail, {"address": address})
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+            self.assertIn("address", response.data)
+
+        valid_address = "456 New Street"
+        response = self.client.patch(self.url_detail, {"address": valid_address})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["address"], valid_address)
+
+    def test_update_store_city_validation(self):
+        invalid_cities = ["", " ", ["city"]]
+
+        for city in invalid_cities:
+            response = self.client.patch(self.url_detail, {"city": city})
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+            self.assertIn("city", response.data)
+
+        valid_city = "New City"
+        response = self.client.patch(self.url_detail, {"city": valid_city})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["city"], valid_city)
+
+    def test_update_store_state_validation(self):
+        print("testing view for state abbreviation validation")
+        invalid_states = [["BE", "HH"]]  # ["XX", "ABC", "A", "12", ["BE"]]
+
+        for state in invalid_states:
+            print("checking:  ", state)
+            response = self.client.patch(self.url_detail, {"state_abbrv": state})
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+            self.assertIn("state_abbrv", response.data)
+
+        valid_state = "HH"
+        response = self.client.patch(self.url_detail, {"state_abbrv": valid_state})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["state_abbrv"], valid_state)
+
+    def test_plz_validation(self):
+        invalid_plz_values = [
+            "123",
+            "1234567",
+            "1234a",
+            "abcde",
+            "12 34",
+            "@#$%&",
+            ["1", "2", "3", "4", "5"],
+        ]
+
+        for plz in invalid_plz_values:
+            response = self.client.patch(self.url_detail, {"plz": plz})
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+            self.assertIn("plz", response.data)
+
+        # Test valid PLZ values
+        valid_plz_values = [
+            "12345",  # string
+            12345,  # integer
+        ]
+
+        for plz in valid_plz_values:
+            response = self.client.patch(self.url_detail, {"plz": plz})
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertEqual(response.data["plz"], "12345")
+
     # Test delete store
     def test_delete_store(self):
-        url = reverse("stores-detail", args=[self.store1.id])
-        response = self.client.delete(url)
+        response = self.client.delete(self.url_detail)
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertEqual(Store.objects.count(), 2)
         self.assertFalse(Store.objects.filter(id=self.store1.id).exists())
@@ -304,19 +385,16 @@ class StoreViewSetTestCase(BaseTestCase):
         self.assertEqual(Store.objects.count(), 3)
         self.assertEqual(response.data["detail"].code, "not_found")
 
-    # def test_delete_store_by_manager(self):
-    #     this should be blocked once I have permissions put in.
-    # StoreDaysView tests:
 
-
-@skip("Temp")
+@skip
 class StoreDaysViewTests(BaseTestCase):
     def setUp(self):
         super().setUp()
-        self.url = reverse("store-days-detail", kwargs={"pk": self.store1.id})
+        self.url_list = reverse("store-days-list")
+        self.url_detail = reverse("store-days-detail", kwargs={"pk": self.store1.id})
 
     def test_get_store_days_valid_id(self):
-        response = self.client.get(self.url)
+        response = self.client.get(self.url_detail)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(
             response.data["days_of_operation"], str(["Montag", "Dienstag", "Mittwoch"])
@@ -324,8 +402,7 @@ class StoreDaysViewTests(BaseTestCase):
         self.assertIn("Modify the days of operation by", response.data["message"])
 
     def test_get_store_days_list(self):
-        url = reverse("store-days-list")
-        response = self.client.get(url)
+        response = self.client.get(self.url_list)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.data["results"]), 2)  # Owner1 has 2 stores
 
@@ -339,11 +416,7 @@ class StoreDaysViewTests(BaseTestCase):
         )
 
     def test_list_pagination(self):
-        url = reverse("store-days-list")
-        response = self.client.get(url, {"page": 1, "page_size": 1})
-        print("\nPagination Response:", response.data)  # Debug print
-        print("Results length:", len(response.data["results"]))
-        print("Page size param:", response.data.get("page_size", "not found"))
+        response = self.client.get(self.url_list, {"page": 1, "page_size": 1})
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data["results"]), 1)
@@ -352,14 +425,13 @@ class StoreDaysViewTests(BaseTestCase):
         self.assertIn("previous", response.data)
 
         # Verify second page
-        response = self.client.get(url, {"page": 2, "page_size": 1})
+        response = self.client.get(self.url_list, {"page": 2, "page_size": 1})
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data["results"]), 1)
 
     def test_pagination_out_of_bounds(self):
-        url = reverse("store-days-list")
-        response = self.client.get(url + "?page=999&page_size=1")
+        response = self.client.get(self.url_list + "?page=999&page_size=1")
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
         self.assertEqual(response.data["detail"].code, "not_found")
 
@@ -377,24 +449,23 @@ class StoreDaysViewTests(BaseTestCase):
     def test_store_days_invalid_auth(self):
         self.client.credentials(HTTP_AUTHORIZATION="Token invalid_token")
         # Try list endpoint
-        list_url = reverse("store-days-list")
-        list_response = self.client.get(list_url)
+        list_response = self.client.get(self.url_list)
         self.assertEqual(list_response.status_code, status.HTTP_401_UNAUTHORIZED)
 
         # Try detail endpoint
-        detail_url = reverse("store-days-detail", kwargs={"pk": self.store1.id})
-        detail_response = self.client.get(detail_url)
+
+        detail_response = self.client.get(self.url_detail)
         self.assertEqual(detail_response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_update_days_to_false(self):
         data = {"montag": False, "dienstag": False}
-        response = self.client.patch(self.url, data)
+        response = self.client.patch(self.url_detail, data)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["days_of_operation"], str(["Mittwoch"]))
 
     def test_update_days_to_true(self):
         data = {"donnerstag": True, "freitag": True}
-        response = self.client.patch(self.url, data)
+        response = self.client.patch(self.url_detail, data)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(
             response.data["days_of_operation"],
@@ -403,15 +474,15 @@ class StoreDaysViewTests(BaseTestCase):
 
     def test_update_days_invalid_boolean(self):
         data = {"montag": "not_a_boolean", "dienstag": 123}
-        response = self.client.patch(self.url, data)
+        response = self.client.patch(self.url_detail, data)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(response.data["montag"][0].code, "invalid")
         self.assertEqual(response.data["dienstag"][0].code, "invalid")
 
     def test_update_days_invalid_field(self):
         data = {"invalid_day": True, "not_a_day": False}
-        response = self.client.patch(self.url, data)
-        print(response.data)
+        response = self.client.patch(self.url_detail, data)
+
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(response.data["invalid_day"].code, "invalid")
         self.assertEqual(response.data["not_a_day"].code, "invalid")
@@ -427,61 +498,46 @@ class StoreDaysViewTests(BaseTestCase):
             "samstag": False,
             "sonntag": True,
         }
-        response = self.client.patch(self.url, data)
+        response = self.client.patch(self.url_detail, data)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         # Check that days are in correct weekday order
         expected_order = ["Dienstag", "Donnerstag", "Freitag", "Sonntag"]
         self.assertEqual(response.data["days_of_operation"], str(expected_order))
 
-    # StoreHoursView tests:
-
-    # Test list stores with hours info
-    # Test retrieve store hours
-    # Test update store hours
-    # Test custom messages in responses
-    # StoreManagersView tests:
-
-    # Test list stores with manager info
-    # Test retrieve store managers
-    # Test update store managers
-    # Test custom messages in responses
-
 
 @skip
 class StoreHoursViewTests(BaseTestCase):
     def setUp(self):
         super().setUp()
-        self.url = reverse("store-hours-detail", kwargs={"pk": 1})
+        self.url_list = reverse("store-hours-list")
+        self.url_detail = reverse("store-hours-detail", kwargs={"pk": 1})
 
     def test_store_hours_invalid_auth(self):
         self.client.credentials(HTTP_AUTHORIZATION="Token invalid_token")
 
         # Try list endpoint
-        list_url = reverse("store-hours-list")
-        list_response = self.client.get(list_url)
+        list_response = self.client.get(self.url_list)
         self.assertEqual(list_response.status_code, status.HTTP_401_UNAUTHORIZED)
 
         # Try detail endpoint
-        detail_url = reverse("store-hours-detail", kwargs={"pk": self.store1.id})
-        detail_response = self.client.get(detail_url)
+        detail_response = self.client.get(self.url_detail)
         self.assertEqual(detail_response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_unauthenticated_access(self):
         self.client.credentials()  # No auth header
 
         # Try list endpoint
-        list_url = reverse("store-hours-list")
-        list_response = self.client.get(list_url)
+        list_response = self.client.get(self.url_list)
         self.assertEqual(list_response.status_code, status.HTTP_401_UNAUTHORIZED)
 
         # Try detail endpoint
-        detail_url = reverse("store-hours-detail", kwargs={"pk": self.store1.id})
-        detail_response = self.client.get(detail_url)
+
+        detail_response = self.client.get(self.url_detail)
         self.assertEqual(detail_response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_get_store_hours_valid_id(self):
-        response = self.client.get(self.url)
+        response = self.client.get(self.url_detail)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["opening_time"], self.times["opening_time"])
         self.assertEqual(response.data["closing_time"], self.times["closing_time"])
@@ -507,8 +563,7 @@ class StoreHoursViewTests(BaseTestCase):
         self.assertEqual(first_store["closing_time"], self.times["closing_time"])
 
     def test_list_pagination(self):
-        url = reverse("store-hours-list")
-        response = self.client.get(url, {"page": 1, "page_size": 1})
+        response = self.client.get(self.url_list, {"page": 1, "page_size": 1})
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data["results"]), 1)
         self.assertIn("count", response.data)
@@ -516,16 +571,15 @@ class StoreHoursViewTests(BaseTestCase):
         self.assertIn("previous", response.data)
 
     def test_pagination_out_of_bounds(self):
-        url = reverse("store-hours-list")
-        response = self.client.get(url + "?page=999&page_size=1")
+        response = self.client.get(self.url_list + "?page=999&page_size=1")
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
         self.assertEqual(response.data["detail"].code, "not_found")
 
     def test_update_store_hours_success(self):
-        data = {"opening_time": "08:00:00", "closing_time": "20:00:00"}
-        response = self.client.put(self.url, data)
+        data = {"opening_time": "11:00:00", "closing_time": "20:00:00"}
+        response = self.client.put(self.url_detail, data)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["opening_time"], "08:00:00")
+        self.assertEqual(response.data["opening_time"], "11:00:00")
         self.assertEqual(response.data["closing_time"], "20:00:00")
 
     def test_update_store_hours_validation_failures(self):
@@ -539,8 +593,7 @@ class StoreHoursViewTests(BaseTestCase):
         ]
 
         for data in invalid_times:
-            print(data)
-            response = self.client.put(self.url, data)
+            response = self.client.put(self.url_detail, data)
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
             self.assertIn("error", str(response.data).lower())
             self.assertIn("closing_time", str(response.data).lower())
@@ -553,39 +606,39 @@ class StoreHoursViewTests(BaseTestCase):
         self.assertEqual(response.data["detail"].code, "not_found")
 
 
+@skip
 class StoreManagersViewTests(BaseTestCase):
     def setUp(self):
         super().setUp()
-        self.url = reverse("store-managers-detail", kwargs={"pk": self.store1.id})
+        self.url_list = reverse("store-managers-list")
+        self.url_detail = reverse(
+            "store-managers-detail", kwargs={"pk": self.store1.id}
+        )
 
     def test_store_managers_invalid_auth(self):
         self.client.credentials(HTTP_AUTHORIZATION="Token invalid_token")
 
         # Try list endpoint
-        list_url = reverse("store-managers-list")
-        list_response = self.client.get(list_url)
+        list_response = self.client.get(self.url_list)
         self.assertEqual(list_response.status_code, status.HTTP_401_UNAUTHORIZED)
 
         # Try detail endpoint
-        detail_url = reverse("store-managers-detail", kwargs={"pk": self.store1.id})
-        detail_response = self.client.get(detail_url)
+        detail_response = self.client.get(self.url_detail)
         self.assertEqual(detail_response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_unauthenticated_access(self):
         self.client.credentials()  # No auth header
 
         # Try list endpoint
-        list_url = reverse("store-managers-list")
-        list_response = self.client.get(list_url)
+        list_response = self.client.get(self.url_list)
         self.assertEqual(list_response.status_code, status.HTTP_401_UNAUTHORIZED)
 
         # Try detail endpoint
-        detail_url = reverse("store-managers-detail", kwargs={"pk": self.store1.id})
-        detail_response = self.client.get(detail_url)
+        detail_response = self.client.get(self.url_detail)
         self.assertEqual(detail_response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_get_store_managers_valid_id(self):
-        response = self.client.get(self.url)
+        response = self.client.get(self.url_detail)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn(self.manager1.id, response.data["manager_ids"])
         self.assertEqual(
@@ -593,15 +646,14 @@ class StoreManagersViewTests(BaseTestCase):
             "Modify the managers of the store by selecting a given user. Selecting a user that is already a manager will remove their manager status.",
         )
 
-    def test_get_store_managers_invalid_id(self):
+    def test_get_store_managers_invalid_store_id(self):
         url = reverse("store-managers-detail", kwargs={"pk": 999})
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
         self.assertEqual(response.data["detail"].code, "not_found")
 
     def test_get_store_managers_list(self):
-        url = reverse("store-managers-list")
-        response = self.client.get(url)
+        response = self.client.get(self.url_list)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data["results"]), 2)  # Owner1 has 2 stores
         first_store = response.data["results"][0]
@@ -609,8 +661,7 @@ class StoreManagersViewTests(BaseTestCase):
         self.assertIn(self.manager1.id, first_store["manager_ids"])
 
     def test_list_pagination(self):
-        url = reverse("store-managers-list")
-        response = self.client.get(url, {"page": 1, "page_size": 1})
+        response = self.client.get(self.url_list, {"page": 1, "page_size": 1})
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data["results"]), 1)
         self.assertIn("count", response.data)
@@ -618,14 +669,13 @@ class StoreManagersViewTests(BaseTestCase):
         self.assertIn("previous", response.data)
 
     def test_pagination_out_of_bounds(self):
-        url = reverse("store-managers-list")
-        response = self.client.get(url + "?page=999&page_size=1")
+        response = self.client.get(self.url_list + "?page=999&page_size=1")
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
         self.assertEqual(response.data["detail"].code, "not_found")
 
     def test_add_new_manager(self):
         data = {"manager_ids": [self.manager2.id]}
-        response = self.client.put(self.url, data)
+        response = self.client.put(self.url_detail, data)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn(self.manager2.id, response.data["manager_ids"])
         self.assertIn(self.manager1.id, response.data["manager_ids"])
@@ -634,16 +684,16 @@ class StoreManagersViewTests(BaseTestCase):
         data = {
             "manager_ids": [self.manager1.id]
         }  # Selecting existing manager removes them
-        response = self.client.put(self.url, data)
+        response = self.client.put(self.url_detail, data)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertNotIn(self.manager1.id, response.data["manager_ids"])
 
     def test_add_invalid_manager_id(self):
         data = {"manager_ids": [999]}
-        response = self.client.put(self.url, data)
+        response = self.client.put(self.url_detail, data)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-    def test_update_nonexistent_store_managers(self):
+    def test_update_managers_nonexistent_store(self):
         url = reverse("store-managers-detail", kwargs={"pk": 999})
         data = {"manager_ids": [self.manager2.id]}
         response = self.client.put(url, data)

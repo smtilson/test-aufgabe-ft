@@ -13,7 +13,9 @@ class StoreSerializer(serializers.ModelSerializer):
     name = serializers.CharField(required=False)
     address = serializers.CharField(required=False)
     city = serializers.CharField(required=False)
-    state_abbrv = serializers.CharField(required=False)
+    state_abbrv = serializers.CharField(
+        max_length=2, style={"input_type": "string"}, required=False
+    )
     plz = serializers.CharField(required=False)
     opening_time = serializers.TimeField(required=False)
     closing_time = serializers.TimeField(required=False)
@@ -52,28 +54,6 @@ class StoreSerializer(serializers.ModelSerializer):
 
     def get_managers(self, obj):
         return [str(mng) for mng in obj.manager_ids.all()]
-
-    def validate_state_abbrv(self, value):
-        if value not in Store.STATES:
-            raise serializers.ValidationError(
-                f"'{value}' is not a valid state abbreviation"
-            )
-        return value
-
-    def validate_name(self, value):
-        # something is catching this error before I get to here.
-        if not isinstance(value, str):
-            raise serializers.ValidationError("Name must be a string.")
-        elif len(value) == 0:
-            raise serializers.ValidationError("Name cannot be blank.")
-        return value
-
-    def validate_plz(self, value):
-        if not value.isdigit():
-            raise serializers.ValidationError("PLZ must contain only numbers")
-        if len(value) != 5:
-            raise serializers.ValidationError("PLZ must be exactly 5 digits")
-        return value
 
     def update(self, instance, validated_data):
         managers_data = validated_data.pop("manager_ids", [])
@@ -122,6 +102,39 @@ class StoreSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {"closing_time": "Closing time must be later than opening time"}
             )
+
+    def validate_state_abbrv(self, value):
+        if value not in Store.STATES:
+            raise serializers.ValidationError(
+                f"'{value}' is an invalid state abbreviation"
+            )
+        return value
+
+    def validate_name(self, value):
+        # something is catching this error before I get to here.
+        if not isinstance(value, str):
+            raise serializers.ValidationError("Name must be a string.")
+        elif not value.strip():
+            raise serializers.ValidationError("Name cannot be blank.")
+        return value
+
+    def validate_address(self, value):
+        has_number = any(char.isdigit() for char in value)
+        has_text = any(char.isalpha() for char in value)
+
+        if not (has_number and has_text):
+            raise serializers.ValidationError(
+                "Address must contain both numbers and text."
+            )
+
+        return value
+
+    def validate_plz(self, value):
+        if not value.isdigit():
+            raise serializers.ValidationError("PLZ must contain only numbers")
+        if len(value) != 5:
+            raise serializers.ValidationError("PLZ must be exactly 5 digits")
+        return value
 
     def validate(self, data):
         self.check_required_fields(data)
