@@ -1,6 +1,6 @@
 from ..models import CustomUser
 from .serializers import CustomUserSerializer, SignUpSerializer, LoginSerializer
-from rest_framework import status
+from rest_framework import status, filters
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.views import APIView
 from rest_framework.generics import CreateAPIView
@@ -16,6 +16,9 @@ class CustomUserViewSet(ModelViewSet):
     permission_classes = [IsAuthenticated]
     queryset = CustomUser.objects.all().order_by("id")
     serializer_class = CustomUserSerializer
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ["first_name", "last_name", "email"]
+    ordering_fields = ["first_name", "last_name", "email"]
 
 
 class SignupView(CreateAPIView):

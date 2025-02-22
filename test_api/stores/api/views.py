@@ -12,7 +12,7 @@ from rest_framework.mixins import (
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.authentication import TokenAuthentication, SessionAuthentication
 from rest_framework.response import Response
-from rest_framework import status
+from rest_framework import status, filters
 from rest_framework.pagination import PageNumberPagination
 from django.db.models import Q
 from ..models import Store
@@ -38,6 +38,9 @@ class StoreViewSet(ModelViewSet):
     authentication_classes = [TokenAuthentication, SessionAuthentication]
     pagination_class = StoreViewsPagination
     http_method_names = ["get", "post", "put", "patch", "delete"]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ["city", "state_abbrv", "plz"]
+    ordering_fields = ["city", "state_abbrv", "plz", "name", "created_at"]
 
     def get_queryset(self):
         return get_user_stores(self.request.user)
