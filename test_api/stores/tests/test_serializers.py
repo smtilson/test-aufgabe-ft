@@ -119,7 +119,7 @@ class StoreSerializerTest(BaseTestCase):
         }
         self.assertEqual(set(data.keys()), expected_fields)
 
-    def test_field_type_validations(self):
+    def test_validations_field_type(self):
         invalid_data = {
             "name": {123},  # should be string
             "address": ["not", "a", "string"],  # should be string
@@ -131,6 +131,7 @@ class StoreSerializerTest(BaseTestCase):
             "montag": "not_boolean",  # must be boolean
             "dienstag": 1234,  # must be boolean
             "manager_ids": "not_a_list",  # must be list of ids
+            "owner_id": "not_an_id",  # must be integer
         }
 
         serializer = StoreSerializer(data=invalid_data, context=self.context_POST)
@@ -184,7 +185,7 @@ class StoreSerializerTest(BaseTestCase):
         closing_time = str(getattr(self.store, "closing_time"))
         self.assertEqual(str(deserialized_data["closing_time"]), closing_time)
 
-    def test_state_abbrv_validation(self):
+    def test_validation_state(self):
         invalid_state_cases = [
             (["BE"], "not a valid string"),
             ("XX", "invalid state"),
@@ -201,21 +202,19 @@ class StoreSerializerTest(BaseTestCase):
             )
             self.assertFalse(serializer.is_valid())
             self.assertIn("state_abbrv", serializer.errors)
-            self.assertIn(
-                expected_error, str(serializer.errors["state_abbrv"][0]).lower()
-            )
+            self.assertIn(expected_error, str(serializer.errors["state_abbrv"]).lower())
 
         # Test valid case
         serialized_data["state_abbrv"] = "BE"
         serializer = StoreSerializer(data=serialized_data, context=self.context_PATCH)
         self.assertTrue(serializer.is_valid())
 
-    def test_plz_validation(self):
+    def test_validation_plz(self):
         invalid_plz_cases = [
             ("123", "exactly 5 digits"),
             ("123456", "exactly 5 digits"),
             ("123ab", "only numbers"),
-            ("", "may not be blank"),
+            ("", "to be empty"),
             (["12345"], "not a valid string"),  # single non-string case
         ]
 
@@ -227,7 +226,7 @@ class StoreSerializerTest(BaseTestCase):
             )
             self.assertFalse(serializer.is_valid())
             self.assertIn("plz", serializer.errors)
-            self.assertIn(expected_error, str(serializer.errors["plz"][0]).lower())
+            self.assertIn(expected_error, str(serializer.errors["plz"]).lower())
 
         valid_plz_cases = ["12345", "01234", 99999]
 
@@ -238,11 +237,11 @@ class StoreSerializerTest(BaseTestCase):
             )
             self.assertTrue(serializer.is_valid())
 
-    def test_name_validation(self):
+    def test_validation_name(self):
         invalid_name_cases = [
             (["Store Name"], "not a valid string"),
-            ("", "may not be blank"),
-            (" ", "may not be blank"),
+            ("", "to be empty"),
+            (" ", "to be empty"),
             ({"name": "Store"}, "not a valid string"),
         ]
 
@@ -258,7 +257,7 @@ class StoreSerializerTest(BaseTestCase):
             )
             self.assertFalse(serializer.is_valid())
             self.assertIn("name", serializer.errors)
-            self.assertIn(expected_error, str(serializer.errors["name"][0]).lower())
+            self.assertIn(expected_error, str(serializer.errors["name"]).lower())
 
         # Test valid cases
         for name in valid_names:
@@ -269,11 +268,11 @@ class StoreSerializerTest(BaseTestCase):
             self.assertTrue(serializer.is_valid())
             self.assertEqual(serializer.validated_data["name"], name)
 
-    def test_address_validation(self):
+    def test_validation_address(self):
         invalid_address_cases = [
             (["123 Main St"], "not a valid string"),
-            ("", "may not be blank"),
-            (" ", "may not be blank"),
+            ("", "to be empty"),
+            (" ", "to be empty"),
             ({"street": "123 Main"}, "not a valid string"),
             (12345, "contain both numbers and text"),
         ]
@@ -295,7 +294,7 @@ class StoreSerializerTest(BaseTestCase):
             )
             self.assertFalse(serializer.is_valid())
             self.assertIn("address", serializer.errors)
-            self.assertIn(expected_error, str(serializer.errors["address"][0]).lower())
+            self.assertIn(expected_error, str(serializer.errors["address"]).lower())
 
         for address in valid_addresses:
             serialized_data["address"] = address
@@ -304,9 +303,7 @@ class StoreSerializerTest(BaseTestCase):
             )
             self.assertTrue(serializer.is_valid())
 
-    def test_validate_time_range(self):
-        # what catches a completely empty time range update?
-        # should that just ignore the update?
+    def test_validation_time_range(self):
         invalid_cases = [
             (
                 {"opening_time": "17:00:00", "closing_time": "09:00:00"},
@@ -325,9 +322,8 @@ class StoreSerializerTest(BaseTestCase):
                 ("opening_time", "Time has wrong format"),
             ),
             (
-                # why isn't the check empty catching this?
                 {"opening_time": ""},
-                ("opening_time", "Time has wrong format"),
+                ("opening_time", "to be empty"),
             ),
             (
                 {"opening_time": ["asd", "123"]},
@@ -401,9 +397,9 @@ class StoreSerializerTest(BaseTestCase):
         for field in serializer.errors:
             self.assertIn(
                 "is required for store creation.",
-                str(serializer.errors[field][0]),
+                str(serializer.errors[field]),
             )
-            self.assertIn(field, str(serializer.errors[field][0]))
+            self.assertIn(field, str(serializer.errors[field]))
 
     def test_days_of_operation_field(self):
         serializer = StoreSerializer(instance=self.store)
@@ -524,15 +520,20 @@ class DaysSerializerTest(BaseTestCase):
         for day in self.days_list:
             self.assertEqual(getattr(updated_store, day), self.new_days[day])
 
-    def test_field_type_validation(self):
-        invalid_data = {"montag": "not_a_boolean", "dienstag": 123}
-        serializer = DaysSerializer(self.store, data=invalid_data, partial=True)
-        self.assertFalse(serializer.is_valid())
-        self.assertIn("montag", serializer.errors)
-        self.assertIn("dienstag", serializer.errors)
-        self.assertEqual(
-            "Must be a valid boolean.", str(serializer.errors["montag"][0])
-        )
+    def test_validation_field_type(self):
+        invalid_data_cases = [
+            ({"montag": "not_a_boolean"}, "Must be a valid boolean"),
+            ({"dienstag": 123}, "Must be a valid boolean"),
+            ({"mittwoch": ["true"]}, "Must be a valid boolean"),
+            ({"donnerstag": {"value": True}}, "Must be a valid boolean"),
+        ]
+
+        for test_data, expected_error in invalid_data_cases:
+            serializer = DaysSerializer(self.store, data=test_data, partial=True)
+            self.assertFalse(serializer.is_valid())
+            field = list(test_data.keys())[0]
+            self.assertIn(field, serializer.errors)
+            self.assertIn(expected_error, str(serializer.errors[field]))
 
     def test_unknown_fields(self):
         invalid_data = {"not_a_day": True, "invalid_field": False}
@@ -616,9 +617,7 @@ class HoursSerializerTest(BaseTestCase):
         self.assertEqual(updated_store.opening_time, time(10, 0))
         self.assertEqual(updated_store.closing_time, time(20, 0))
 
-    def test_validate_time_range(self):
-        # what catches a completely empty time range update?
-        # should that just ignore the update?
+    def test_validation_time_range(self):
         invalid_cases = [
             (
                 {"opening_time": "17:00:00", "closing_time": "09:00:00"},
@@ -637,9 +636,8 @@ class HoursSerializerTest(BaseTestCase):
                 ("opening_time", "Time has wrong format"),
             ),
             (
-                # why isn't the check empty catching this?
                 {"opening_time": ""},
-                ("opening_time", "Time has wrong format"),
+                ("opening_time", "to be empty"),
             ),
             (
                 {"opening_time": ["asd", "123"]},
