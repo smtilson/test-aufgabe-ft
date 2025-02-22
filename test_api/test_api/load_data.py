@@ -5,7 +5,6 @@ from datetime import time, timedelta
 
 User = get_user_model()
 
-
 FIRST_NAMES = (
     "Emma",
     "Liam",
@@ -19,6 +18,16 @@ FIRST_NAMES = (
     "James",
     "Mia",
     "Lucas",
+    "Charlotte",
+    "Henry",
+    "Amelia",
+    "Alexander",
+    "Luna",
+    "Benjamin",
+    "Harper",
+    "Sebastian",
+    "Ella",
+    "Theodore",
 )
 
 LAST_NAMES = (
@@ -32,6 +41,16 @@ LAST_NAMES = (
     "Schulz",
     "Hoffmann",
     "Koch",
+    "Richter",
+    "Klein",
+    "Wolf",
+    "Schroeder",
+    "Neumann",
+    "Schwarz",
+    "Zimmermann",
+    "Braun",
+    "Krause",
+    "Schmitz",
 )
 
 EMAIL_DOMAINS = (
@@ -41,6 +60,16 @@ EMAIL_DOMAINS = (
     "outlook.com",
     "proton.me",
     "example.com",
+    "icloud.com",
+    "mail.com",
+    "web.de",
+    "gmx.de",
+    "t-online.de",
+    "posteo.de",
+    "mailbox.org",
+    "fastmail.com",
+    "zoho.com",
+    "aol.com",
 )
 
 CITIES = (
@@ -141,10 +170,21 @@ STATE = tuple((abbrv for abbrv in Store.STATES))
 PASSWORD = "StRoNgPaSsWoRd123!"
 
 
+def get_used_emails():
+    return set(User.objects.values_list("email", flat=True))
+
+
 def generate_user():
     first_name = random.choice(FIRST_NAMES)
     last_name = random.choice(LAST_NAMES)
+    invalid_emails = get_used_emails()
     email = f"{first_name.lower()}.{last_name.lower()}@{random.choice(EMAIL_DOMAINS)}"
+    while email in invalid_emails:
+        first_name = random.choice(FIRST_NAMES)
+        last_name = random.choice(LAST_NAMES)
+        email = (
+            f"{first_name.lower()}.{last_name.lower()}@{random.choice(EMAIL_DOMAINS)}"
+        )
     return User.objects.create_user(
         email=email,
         password=PASSWORD,
@@ -180,51 +220,77 @@ def generate_store_name(city):
 
 def generate_store():
     city = random.choice(CITIES)
-    address = random.choice(STREET_NAMES) + random.choice(STREET_NUMBERS)
-    plz = random.choice(PLZ_CODES)
-    opening = random.choice(OPENING_TIMES)
-    closing = random.choice(CLOSING_TIMES)
-    state = random.choice(STATE)
-
     name = generate_store_name(city)
-    owner = store_owner()
-
     store = Store.objects.create(
-        owner_id=owner,
+        owner_id=store_owner(),
         name=name,
         city=city,
-        address=address,
-        plz=plz,
-        opening_time=time.fromisoformat(opening),
-        closing_time=time.fromisoformat(closing),
-        state_abbrv=state,
+        address=random.choice(STREET_NAMES) + random.choice(STREET_NUMBERS),
+        plz=random.choice(PLZ_CODES),
+        opening_time=random.choice(OPENING_TIMES),
+        closing_time=random.choice(CLOSING_TIMES),
+        state_abbrv=random.choice(STATE),
     )
 
     for manager in store_managers(random.randint(1, 4)):
-        store.managers.add(manager)
-    store.save()
+        store.manager_ids.add(manager)
+    number_of_days = 0
+    while number_of_days < 3:
+        for day in DAYS:
+            setattr(store, day, False)
+            choice = random.choice([True, False])
+            if choice:
+                number_of_days += 1
+            setattr(store, day, choice)
 
+    store.save()
     return store
 
 
 def populate_database(num_stores, num_regular_users):
     # First create regular users
-    regular_users = [generate_user() for _ in range(num_regular_users)]
+    for _ in range(num_regular_users):
+        generate_user()
 
     # Create stores with random owners and managers
-    stores = [generate_store() for _ in range(num_stores)]
-    for store in stores:
-        for day in DAYS:
-            setattr(store, day, random.choice([True, False]))
+    for _ in range(num_stores):
+        generate_store()
 
-        setattr(store, "opening_time", random.choice(OPENING_TIMES))
-        setattr(store, "closing_time", random.choice(CLOSING_TIMES))
-        store.save()
-
-    return regular_users, stores
+    num_users = User.objects.count()
+    num_stores = Store.objects.count()
+    print(f"Total users: {num_users}")
+    print(f"Total stores: {num_stores}")
 
 
 def clear_database():
+    # Initial counts
+    initial_users = User.objects.count()
+    initial_superusers = User.objects.filter(is_superuser=True).count()
+    initial_stores = Store.objects.count()
+
+    print(f"Initial database state:")
+    print(f"Total users: {initial_users}")
+    print(f"Superusers: {initial_superusers}")
+    print(f"Stores: {initial_stores}")
+
+    # Get users to delete
+    users_to_delete = User.objects.filter(is_superuser=False)
+    for superuser in User.objects.filter(is_superuser=True):
+        if superuser.email in set(users_to_delete.values_list("email", flat=True)):
+            users_to_delete = users_to_delete.exclude(email=superuser.email)
+    deletion_count = users_to_delete.count()
+    print(f"\nDeleting {deletion_count} users and {initial_stores} stores")
+
+    # Perform deletion
     Store.objects.all().delete()
-    User.objects.filter(is_superuser=False).delete()
-    return "Database cleared except for superusers"
+    users_to_delete.delete()
+
+    # Final counts
+    final_users = User.objects.count()
+    final_stores = Store.objects.count()
+
+    print(f"\nFinal database state:")
+    print(f"Remaining users: {final_users}")
+    print(f"Remaining stores: {final_stores}")
+
+    print("Database cleared successfully")
