@@ -3,8 +3,6 @@ from .views import (
     StoreManagersView,
     StoreDaysView,
     StoreHoursView,
-    StoreDaysListView,
-    StoreDaysDetailView,
 )
 from rest_framework.routers import DefaultRouter
 from django.urls import path, include

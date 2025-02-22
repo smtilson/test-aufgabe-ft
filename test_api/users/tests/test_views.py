@@ -103,9 +103,6 @@ class SignupViewTests(APITestCase):
         self.assertIn("with this email already exists.", response.data["email"][0])
 
 
-# not yet looked at
-
-
 class LoginViewTests(APITestCase):
     def setUp(self):
         self.user = User.objects.create_user(**BASE_DATA)

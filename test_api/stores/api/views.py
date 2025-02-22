@@ -1,22 +1,17 @@
 from rest_framework.viewsets import ModelViewSet
-from rest_framework.views import APIView
 from rest_framework.generics import GenericAPIView
 from rest_framework.mixins import (
     RetrieveModelMixin as Retrieve,
     ListModelMixin as List,
     UpdateModelMixin as Update,
-    DestroyModelMixin as Destroy,
-    CreateModelMixin as Create,
 )
 
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.authentication import TokenAuthentication, SessionAuthentication
-from rest_framework.response import Response
-from rest_framework import status, filters
 from rest_framework.pagination import PageNumberPagination
 from django.db.models import Q
 from ..models import Store
-
+from .filters import StoreFilter, DaysFilter, HoursFilter, ManagersFilter
 from .serializers import (
     StoreSerializer,
     DaysSerializer,
@@ -37,10 +32,8 @@ class StoreViewSet(ModelViewSet):
     permission_classes = [IsAuthenticated]
     authentication_classes = [TokenAuthentication, SessionAuthentication]
     pagination_class = StoreViewsPagination
+    filterset_class = StoreFilter
     http_method_names = ["get", "post", "put", "patch", "delete"]
-    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
-    search_fields = ["city", "state_abbrv", "plz"]
-    ordering_fields = ["city", "state_abbrv", "plz", "name", "created_at"]
 
     def get_queryset(self):
         return get_user_stores(self.request.user)
@@ -69,6 +62,7 @@ class StoreDaysView(
     permission_classes = [IsAuthenticated]
     authentication_classes = [TokenAuthentication, SessionAuthentication]
     pagination_class = StoreViewsPagination
+    filterset_class = DaysFilter
     http_method_names = ["get", "put", "patch"]
 
     def get_queryset(self):
@@ -98,6 +92,7 @@ class StoreHoursView(GenericAPIView, List, Retrieve, Update):
     permission_classes = [IsAuthenticated]
     authentication_classes = [TokenAuthentication, SessionAuthentication]
     pagination_class = StoreViewsPagination
+    filterset_class = HoursFilter
     http_method_names = ["get", "put", "patch"]
 
     def get_queryset(self):
@@ -128,6 +123,7 @@ class StoreManagersView(GenericAPIView, List, Retrieve, Update):
     permission_classes = [IsAuthenticated]
     authentication_classes = [TokenAuthentication, SessionAuthentication]
     pagination_class = StoreViewsPagination
+    filterset_class = ManagersFilter
     http_method_names = ["get", "put", "patch"]
 
     def get_queryset(self):
@@ -154,69 +150,9 @@ class StoreManagersView(GenericAPIView, List, Retrieve, Update):
         return self.partial_update(request, *args, **kwargs)
 
 
-# protect this with manager permissions
-class ManagerView(APIView):
-    permission_classes = [IsAuthenticated]
-    authentication_classes = [TokenAuthentication, SessionAuthentication]
-
-    def get(self, request):
-        user = request.user
-        stores = user.managed_stores.all()
-        stores = stores.union(user.owned_stores.all())
-        serializer = StoreSerializer(stores, many=True)
-        return Response(serializer.data)
-
-
-# protect this with owner permissions
-class OwnerView(APIView):
-    permission_classes = [IsAuthenticated]
-    authentication_classes = [SessionAuthentication]
-    # authentication_classes = [TokenAuthentication, SessionAuthentication]
-
-    def get(self, request):
-        user = request.user
-        stores = user.owned_stores.all()
-        serializer = StoreSerializer(stores, many=True)
-        return Response(serializer.data)
-
-
 # Another approach would be to use a mixin class.
 def get_user_stores(user):
-    # print("User:", user)
     queryset = Store.objects.filter(
         Q(manager_ids__in=[user]) | Q(owner_id=user)
     ).distinct()
-    # print("Queryset count:", queryset.count())
     return queryset
-
-
-class StoreDaysListView(APIView):
-    authentication_classes = [TokenAuthentication, SessionAuthentication]
-    permission_classes = [IsAuthenticated]
-
-    # print("StoreDaysListView loaded")
-
-    def __init__(self, *args, **kwargs):
-        # print("StoreDaysListView initialized")
-        super().__init__(*args, **kwargs)
-
-    def get(self, request):
-        # print("List view GET called")
-        return Response({"message": "This is the list view"}, status=status.HTTP_200_OK)
-
-
-class StoreDaysDetailView(APIView):
-    authentication_classes = [TokenAuthentication, SessionAuthentication]
-    permission_classes = [IsAuthenticated]
-
-    # print("StoreDaysDetailView loaded")
-
-    def __init__(self, *args, **kwargs):
-        # print("StoreDaysDetailView initialized")
-        super().__init__(*args, **kwargs)
-
-    def get(self, request, pk):
-        # print("Detail view GET called")
-        return Response(
-            {"message": "This is the detail view"}, status=status.HTTP_200_OK
-        )

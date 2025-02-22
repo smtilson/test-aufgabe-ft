@@ -25,9 +25,9 @@ class UserFilter(FilterSet):
     class Meta:
         model = get_user_model()
         fields = {
-            "first_name": ["exact", "icontains"],
-            "last_name": ["exact", "icontains"],
-            "email": ["exact", "icontains"],
+            "first_name": ["icontains"],
+            "last_name": ["icontains"],
+            "email": ["icontains"],
             "owned_stores": ["exact", "in"],
             "managed_stores": ["exact", "in"],
         }
