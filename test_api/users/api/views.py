@@ -1,6 +1,7 @@
 from ..models import CustomUser
 from .serializers import CustomUserSerializer, SignUpSerializer, LoginSerializer
 from rest_framework import status, filters
+from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.views import APIView
 from rest_framework.generics import CreateAPIView
