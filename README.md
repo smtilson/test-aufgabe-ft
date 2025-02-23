@@ -47,6 +47,30 @@ At Foodtracks each of our customers has their own DB.
 
 3. / 4. No, no JS / Html frontend is necessary per se. Django already has its own possibilities to show the DB information over the requested APIs.
 
+## Documentation
+The primary documentation uses the tool Swagger and DRF-yasg. It can be accessed at http://localhost:8000/swagger/. There is a markdown version of the [Swagger Yaml](/documentation/swagger_yaml.md).
+We give a brief summary here nonetheless.
+
+### Main endpoints
+
+#### /users/
+This can be used to access the viewset for all of the users. It is accessible to all authenticated users.
+### User Endpoints
+
+#### Create a new user
+
+### Store Endpoints
+#### /store/
+##### Create a new store
+##### Retrieve a single store by ID
+##### Retrieve a list of all stores
+##### Update an existing store (with all fields)
+##### Update an existing store (with some fields)
+##### Delete an existing store
+####
+
+
+
 ## Bugs
 - When trying to make migrations, I got error: fields.E304. This was due to the similar field names in the AbstractBaseUser model I am inheriting from.
  - Fix: Override the field and change the related name attribute.

@@ -1,3 +1,5 @@
+from rest_framework import status
+from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.generics import GenericAPIView
 from rest_framework.mixins import (
@@ -83,6 +85,8 @@ class StoreDaysView(
         return response
 
     def patch(self, request, *args, **kwargs):
+        if is_list_view(request):
+            return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
         return self.partial_update(request, *args, **kwargs)
 
 
@@ -114,6 +118,8 @@ class StoreHoursView(GenericAPIView, List, Retrieve, Update):
         return response
 
     def patch(self, request, *args, **kwargs):
+        if is_list_view(request):
+            return Response(status=status.HTTP_405_METHOD_NOT)
         return self.partial_update(request, *args, **kwargs)
 
 
@@ -127,7 +133,7 @@ class StoreManagersView(GenericAPIView, List, Retrieve, Update):
     http_method_names = ["get", "put", "patch"]
 
     def get_queryset(self):
-        return get_user_stores(self.request.user)
+        return Store.objects.filter(Q(owner_id=self.request.user))
 
     def get(self, request, *args, **kwargs):
         pk = kwargs.get("pk", None)
@@ -147,6 +153,8 @@ class StoreManagersView(GenericAPIView, List, Retrieve, Update):
         return response
 
     def patch(self, request, *args, **kwargs):
+        if is_list_view(request):
+            return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
         return self.partial_update(request, *args, **kwargs)
 
 
@@ -155,3 +163,7 @@ def get_user_stores(user):
     if user.is_superuser:
         return Store.objects.all()
     return Store.objects.filter(Q(manager_ids__in=[user]) | Q(owner_id=user)).distinct()
+
+
+def is_list_view(request):
+    return list in request.path

@@ -11,6 +11,12 @@ from django_filters.rest_framework import (
 from rest_framework.exceptions import ValidationError
 from datetime import datetime
 from ..models import Store
+from .serializers import (
+    StoreSerializer,
+    DaysSerializer,
+    HoursSerializer,
+    ManagersSerializer,
+)
 
 
 class BaseFilterValidationMixin:
@@ -21,11 +27,7 @@ class BaseFilterValidationMixin:
                 f"Invalid query parameter: {invalid_params.pop()}. Must be one of: {allowed_params}"
             )
 
-    def _check_for_duplicates(self, field, values):
-        if len(values) > 1:
-            raise ValidationError(f"Duplicate query parameter found: {field}")
-
-    def _add_pagination_params(self, allowed_params):
+    def _add_default_params(self, allowed_params):
         return allowed_params | {"page", "page_size", "ordering"}
 
     def _reject_all_empty(self, params):
@@ -58,6 +60,20 @@ class BaseFilterValidationMixin:
                 f"Invalid parameter, must be 'true' or 'false': {field}"
             )
 
+    def _check_for_duplicate(self, field, values):
+        if len(values) > 1:
+            raise ValidationError(f"Duplicate query parameter found: {field}")
+
+    def _check_for_duplicates(self, params):
+        for field in params.keys():
+            values = params.getlist(field)
+            self._check_for_duplicate(field, values)
+
+    def _base_validation(self, params, allowed_params):
+        self._reject_all_empty(params)
+        self._validate_parameter_names(params, allowed_params)
+        self._check_for_duplicates(params)
+
 
 class DaysFilter(FilterSet, BaseFilterValidationMixin):
     montag = BooleanFilter()
@@ -81,11 +97,8 @@ class DaysFilter(FilterSet, BaseFilterValidationMixin):
     def validate_filters(self, params):
         params = self.request.query_params
         day_fields = set(self.filters.keys())
-        allowed_params = self._add_pagination_params(day_fields)
-
-        self._reject_all_empty(params)
-        self._validate_parameter_names(params, allowed_params)
-        self._validate_day_fields(params, day_fields)
+        allowed_params = self._add_default_params(day_fields)
+        self._base_validation(params, allowed_params)
 
 
 class HoursFilter(FilterSet, BaseFilterValidationMixin):
@@ -121,10 +134,7 @@ class HoursFilter(FilterSet, BaseFilterValidationMixin):
     def validate_filters(self, params):
         time_fields = set(self.filters.keys())
         allowed_params = time_fields | {"page", "page_size", "ordering"}
-
-        self._reject_all_empty(params)
-        self._validate_parameter_names(params, allowed_params)
-        self._check_for_duplicates(params, time_fields)
+        self._base_validation(params, allowed_params)
 
 
 class ManagersFilter(FilterSet, BaseFilterValidationMixin):
@@ -165,15 +175,10 @@ class ManagersFilter(FilterSet, BaseFilterValidationMixin):
 
     def validate_filters(self, params):
         manager_fields = set(self.filters.keys())
-        allowed_params = self._add_pagination_params(manager_fields)
-
-        self._reject_all_empty(params)
-        self._validate_parameter_names(params, allowed_params)
-
+        allowed_params = self._add_default_params(manager_fields)
+        self._base_validation(params, allowed_params)
         for field in set(params.keys()):
             values = params.getlist(field)
-            self._check_for_duplicates(field, values)
-
             # Validate names only for name-related fields
             if "name" in field:
                 self._validate_name(values[0])
@@ -188,15 +193,38 @@ class StoreFilter(FilterSet, BaseFilterValidationMixin):
     state_choices.sort(key=lambda x: x[0])
     state_abbrv = ChoiceFilter(choices=state_choices, lookup_expr="icontains")
     plz = CharFilter(lookup_expr="exact")
-    owner_id = NumberFilter(lookup_expr="exact")
+
+    owner_ids = NumberFilter(
+        lookup_expr="exact",
+        validators=[MinValueValidator(1, message="Invalid owner ID")],
+    )
+    owner_ids_in = NumberFilter(
+        lookup_expr="in",
+        validators=[MinValueValidator(1, message="Invalid owner ID")],
+    )
     owner_first_name = CharFilter(
-        field_name="owner_id__first_name", lookup_expr="icontains"
+        field_name="owner_ids__first_name", lookup_expr="icontains"
     )
     owner_last_name = CharFilter(
-        field_name="owner_id__last_name", lookup_expr="icontains"
+        field_name="owner_ids__last_name", lookup_expr="icontains"
     )
 
-    # Include all filters from other classes
+    # From ManagersFilter
+    manager_ids = NumberFilter(
+        lookup_expr="exact",
+        validators=[MinValueValidator(1, message="Invalid manager ID")],
+    )
+    manager_ids_in = NumberFilter(
+        lookup_expr="in",
+        validators=[MinValueValidator(1, message="Invalid manager ID")],
+    )
+    manager_first_name = CharFilter(
+        field_name="manager_ids__first_name", lookup_expr="icontains"
+    )
+    manager_last_name = CharFilter(
+        field_name="manager_ids__last_name", lookup_expr="icontains"
+    )
+
     # From HoursFilter
     opening_time = TimeFilter()
     opening_time_lte = TimeFilter(field_name="opening_time", lookup_expr="lte")
@@ -229,11 +257,10 @@ class StoreFilter(FilterSet, BaseFilterValidationMixin):
             ("name", "name"),
             ("city", "city"),
             ("state_abbrv", "state"),
-            ("plz", "plz"),
-            ("created_at", "created"),
-            ("updated_at", "updated"),
             ("opening_time", "opens"),
             ("closing_time", "closes"),
+            ("owner_id__first_name", "owner_first_name"),
+            ("owner_id__last_name", "owner_last_name"),
             ("manager_ids__first_name", "manager_first_name"),
             ("manager_ids__last_name", "manager_last_name"),
         )
@@ -254,11 +281,10 @@ class StoreFilter(FilterSet, BaseFilterValidationMixin):
         return super().filter_queryset(queryset)
 
     # maybe refactor most of this into a base class method
+
     def validate_filters(self, params):
         allowed_params = self.filters.keys()
-        allowed_params = self._add_pagination_params(self.filters.keys())
-        self._reject_all_empty(params)
-        self._validate_parameter_names(params, allowed_params)
-        for field in set(params.keys()):
-            values = params.getlist(field)
-            self._check_for_duplicates(field, values)
+        allowed_params = self._add_default_params(self.filters.keys())
+        self._base_validation(params, allowed_params)
+        serializer = StoreSerializer(data=params, context={"request": self.request})
+        serializer.is_valid(raise_exception=True)
