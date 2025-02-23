@@ -8,20 +8,18 @@ from rest_framework.views import APIView
 from rest_framework.generics import CreateAPIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
+
 from rest_framework.authtoken.models import Token
 
 from django.contrib.auth import authenticate
+from .permissions import IsSuperUser
 
 
 class CustomUserViewSet(ModelViewSet):
-    # remove when not debugging.
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsSuperUser]
     queryset = CustomUser.objects.all().order_by("id")
     serializer_class = CustomUserSerializer
-    # filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     filterset_class = UserFilter
-    # search_fields = ["first_name", "last_name", "email"]
-    # ordering_fields = ["first_name", "last_name", "email"]
 
 
 class SignupView(CreateAPIView):

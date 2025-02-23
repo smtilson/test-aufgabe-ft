@@ -11,12 +11,16 @@ I used standard design practices from the Django REST framework. This means seri
 This API is not yet deployed to Heroku. It can be forked from [this](https://github.com/smtilson/test-aufgabe-ft/) repository and run locally.
 
 ### Requirements
-The main packages used are Django 5.1.6, Django REST Framework 3.15.2, and Django Filter 
-djangorestframework_simplejwt==5.4.0
-django-filter
-.
+The main packages used are Django 5.1.6, Django REST Framework 3.15.2, and Django Filter 25.1.
+
 ### Login and Signup
-A
+A new user can signup at the endpoint /users/signup/. The user will receive a token. This token should be passed in the header of all requests to the API:
+HTTP_AUTHORIZATION: Token token.key
+
+After initial signup, the user will also receive the same token upon login at the endpoint /users/login/.
+
+### Users
+The user endpoint is /users/. This endpoint can be used to create a new user, retrieve a list of all users, retrieve a single user, update a user, and delete a user. This page is intended for use 
 ## Design Decisions
 ### User Types
 I decided to have one basic user type. Any user can be an owner and any user can be a manager. This can be easily modified to prevent owners from being managers and managers from being owners, but this didn't seem like a priority.
@@ -80,6 +84,7 @@ There were some bugs. Here are the ones that stood out.
 - At one point, the ordering keyword was being passed to the serializer. This took a bit of time to figure out.
 - The fields in the model are required by default. This caused an error to be thrown before validation by the serializer caught it. This was annoying.
 - I tried to name a model field _state. Django did not like this (a "youthful" error on my part). I changed it to state_abbrv.
+- A delete request was not returning a 204 status code. Perhaps there is some middleware that is intercepting the response. This is likely note hard to fix, but I found it late and didnt consider it a priority.
 
 ## Documentation
 The primary documentation uses the tool Swagger and DRF-yasg. It can be accessed at http://localhost:8000/swagger/. There is a markdown version of the [Swagger Yaml](/documentation/swagger_yaml.md).

@@ -174,19 +174,3 @@ class LoginSerializerTest(TestCase):
             serializer = LoginSerializer(data=missing_data)
             self.assertFalse(serializer.is_valid())
             self.assertIn(_, serializer.errors)
-
-
-# some of this seems like in belongs in testing views
-# These should test each serializer
-# testing serialization and deserialization
-# see that password is hashed/handled correctly
-
-# Test Signup serializer
-## new user can be created
-## that a token is created and returned
-# Test Login serializer
-## user can login
-## token is returned
-## user can't login with wrong password
-## user can't login with wrong email
-## bad credentials give a response
