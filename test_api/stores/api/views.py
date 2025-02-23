@@ -34,6 +34,7 @@ class StoreViewSet(ModelViewSet):
     permission_classes = [IsAuthenticated]
     authentication_classes = [TokenAuthentication, SessionAuthentication]
     pagination_class = StoreViewsPagination
+    # filter_backends = [OrderingFilter]
     filterset_class = StoreFilter
     http_method_names = ["get", "post", "put", "patch", "delete"]
 
