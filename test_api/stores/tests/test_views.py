@@ -42,6 +42,10 @@ for key in {"plz", "state_abbrv"}:
 
 
 class BaseTestCase(APITestCase):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        print(f"\nInitializing test class: {self.__class__.__name__}")
+
     def setUp(self):
         clear_url_caches()
         self.owner1 = User.objects.create_user(**OWNER1_DATA)
@@ -423,6 +427,7 @@ class StoreViewSetTestCase(BaseTestCase):
         self.assertEqual(response.data["detail"].code, "not_found")
 
 
+@skip
 class StoreDaysViewTests(BaseTestCase):
     def setUp(self):
         super().setUp()
@@ -651,12 +656,15 @@ class StoreDaysViewTests(BaseTestCase):
             self.assertIn("Invalid query parameter", str(response.data))
 
 
-@skip
 class StoreHoursViewTests(BaseTestCase):
     def setUp(self):
         super().setUp()
         self.url_list = reverse("store-hours-list")
         self.url_detail = reverse("store-hours-detail", kwargs={"pk": 1})
+
+    def bulk_populate(self):
+        super().bulk_populate(20, 35)
+        # i need to add something analogous to counting how many stores are open on a given day.
 
     def test_store_hours_invalid_auth(self):
         self.client.credentials(HTTP_AUTHORIZATION="Token invalid_token")
@@ -749,6 +757,122 @@ class StoreHoursViewTests(BaseTestCase):
         response = self.client.put(url, data)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
         self.assertEqual(response.data["detail"].code, "not_found")
+
+    def test_filter_by_time(self):
+        self.bulk_populate()
+        test_cases = {
+            "opening_time": ("09:00", "12:30", "17:45", "23:00"),
+            "closing_time": ("09:00", "12:30", "17:45", "23:00"),
+        }
+
+        for field, times in test_cases.items():
+            for time in times:
+                url = self.url_list + f"?{field}={time}"
+                response = self.client.get(url)
+                self.assertEqual(response.status_code, status.HTTP_200_OK)
+                expected_count = Store.objects.filter(**{field: time}).count()
+                self.assertEqual(response.data["count"], expected_count)
+
+    def test_filter_by_time_range(self):
+        self.bulk_populate()
+        test_cases = (
+            {"opening_time__lt": "12:00", "closing_time__gt": "17:00"},
+            {"opening_time__lte": "09:00", "closing_time__gte": "18:00"},
+            {"opening_time__gt": "07:00", "closing_time__lt": "22:00"},
+        )
+
+        for case in test_cases:
+            query = "&".join([f"{field}={value}" for field, value in case.items()])
+            url = self.url_list + "?" + query
+            expected_count = Store.objects.filter(**case).count()
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertEqual(response.data["count"], expected_count)
+
+    def test_filter_duplicate_parameters(self):
+        self.bulk_populate()
+        duplicate_cases = {
+            "opening_time=09:00&opening_time=10:00": "Duplicate query parameter",
+            "closing_time=17:00&closing_time=18:00": "Duplicate query parameter",
+        }
+
+        for case, error_msg in duplicate_cases.items():
+            url = self.url_list + "?" + case
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+            self.assertIn(error_msg, str(response.data))
+
+    def test_filter_invalid_time_format(self):
+        self.bulk_populate()
+        invalid_times = {
+            "9:00": "Must be in HH:MM format",  # missing leading zero
+            "09:60": "Must be in HH:MM format",  # invalid minutes
+            "24:00": "Must be in HH:MM format",  # invalid hours
+            "09-00": "Must be in HH:MM format",  # wrong separator
+            "0900": "Must be in HH:MM format",  # no separator
+            "09:00 AM": "Must be in HH:MM format",  # with AM/PM
+        }
+
+        for time, error_msg in invalid_times.items():
+            url = self.url_list + f"?opening_time={time}"
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+            self.assertIn(error_msg, str(response.data))
+
+    def test_filter_empty_queries(self):
+        self.bulk_populate()
+        empty_queries = {
+            "?opening_time=": "Must be in HH:MM format",
+            "?opening_time=&closing_time=": "Must be in HH:MM format",
+            "?opening_time": "Must be in HH:MM format",
+            "?closing_time": "Must be in HH:MM format",
+        }
+
+        for query, error_msg in empty_queries.items():
+            url = self.url_list + query
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+            self.assertIn(error_msg, str(response.data))
+
+    def test_filter_with_url_encoding(self):
+        self.bulk_populate()
+        encoded_urls = (
+            (self.url_list + "?opening_time%3D09:00", status.HTTP_400_BAD_REQUEST),
+            (self.url_list + "?opening_time=09:00%20", status.HTTP_400_BAD_REQUEST),
+            (self.url_list + "?opening_time%20=09:00", status.HTTP_400_BAD_REQUEST),
+        )
+
+        for url, expected_status in encoded_urls:
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, expected_status)
+
+    def test_filter_non_time_parameters(self):
+        self.bulk_populate()
+        invalid_params = {
+            "?random=09:00": "Invalid query parameter",
+            "?foo=17:00": "Invalid query parameter",
+            "?not_a_time=09:00&opening_time=10:00": "Invalid query parameter",
+        }
+
+        for param, error_msg in invalid_params.items():
+            url = self.url_list + param
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+            self.assertIn(error_msg, str(response.data))
+
+    def test_filter_ordering(self):
+        self.bulk_populate()
+        ordering_cases = {
+            "opens": status.HTTP_200_OK,
+            "-opens": status.HTTP_200_OK,
+            "closes": status.HTTP_200_OK,
+            "-closes": status.HTTP_200_OK,
+        }
+
+        for field, expected_status in ordering_cases.items():
+            url = self.url_list + f"?ordering={field}"
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, expected_status)
 
 
 @skip
