@@ -117,6 +117,12 @@ class BaseTestCase(APITestCase):
     def _django_comparison(self, field, comparison):
         return f"{field}__{comparison}"
 
+    def django_query(self, field, specifier):
+        return f"{field}_ids__{specifier}"
+
+    def url_query(self, field, specifier):
+        return f"{field}_{specifier}"
+
 
 # StoreViewSet tests:
 
@@ -477,20 +483,30 @@ class StoreViewSetTestCase(BaseTestCase):
             ).count()
             self.assertEqual(response.data["count"], expected_count)
 
-    @skip
-    def test_filter_by_owner(self):
+    def test_filter_by_owner_name(self):
         self.switch_to_superuser()
+        stores = Store.objects.all()
+        owner1 = stores.first().owner_id
+        owner2 = stores.last().owner_id
+
         test_cases = (
-            ("owner_id", self.owner1.id),
-            ("owner_first_name", self.owner1.first_name),
-            ("owner_last_name", self.owner1.last_name),
+            ("first_name", owner1.first_name),
+            ("first_name", owner2.first_name),
+            ("last_name", owner1.last_name),
+            ("last_name", owner2.last_name),
+            ("first_name", "NonexistentName"),
         )
 
-        for field, value in test_cases:
-            url = self.url_list + f"?{field}={value}"
+        for specifier, name in test_cases:
+            field = self.url_query("owner", specifier)
+            url = self.url_list + f"?{field}={name}"
             response = self.client.get(url)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
-            expected_count = Store.objects.filter(**{field: value}).count()
+
+            filter_field = self.django_query("owner", specifier)
+            expected_count = Store.objects.filter(
+                **{f"{filter_field}__icontains": name}
+            ).count()
             self.assertEqual(response.data["count"], expected_count)
 
     def test_filter_invalid_store_name(self):
@@ -717,7 +733,7 @@ class StoreDaysViewTests(BaseTestCase):
         self.assertEqual(response.data["days_of_operation"], str(expected_order))
 
     def test_filter_by_day(self):
-        self.bulk_populate()
+        self.switch_to_superuser()
         for day in self.days_list:
             url = self.url_list + f"?{day}=true"
             response = self.client.get(url)
@@ -725,7 +741,7 @@ class StoreDaysViewTests(BaseTestCase):
             self.assertEqual(response.data["count"], getattr(self, day))
 
     def test_filter_by_multiple_days(self):
-        self.bulk_populate()
+        self.switch_to_superuser()
 
         # Test different day combinations
         combinations = [
@@ -752,7 +768,7 @@ class StoreDaysViewTests(BaseTestCase):
             self.assertEqual(response.data["count"], expected_count)
 
     def test_filter_duplicate_parameters(self):
-        self.bulk_populate()
+        self.switch_to_superuser()
         pairs = [("true", "false"), ("true", "true"), ("", "true")]
         for pair in pairs:
             url = self.url_list + f"?montag={pair[0]}&montag={pair[1]}"
@@ -761,7 +777,7 @@ class StoreDaysViewTests(BaseTestCase):
             self.assertIn("Duplicate query parameter", str(response.data))
 
     def test_filter_empty_queries(self):
-        self.bulk_populate()
+        self.switch_to_superuser()
         empty_queries = ["?montag=", "?montag=&dienstag=", "?montag", "?dienstag"]
         for query in empty_queries:
             url = self.url_list + query
@@ -770,7 +786,7 @@ class StoreDaysViewTests(BaseTestCase):
             self.assertIn("Invalid parameter,", str(response.data))
 
     def test_filter_case_sensitivity(self):
-        self.bulk_populate()
+        self.switch_to_superuser()
         true_variations = ["true", "True", "TRUE", "tRuE"]
         false_variations = ["false", "False", "FALSE", "fAlSe"]
         true_count = Store.objects.filter(montag=True).count()
@@ -787,7 +803,7 @@ class StoreDaysViewTests(BaseTestCase):
             self.assertEqual(response.data["count"], false_count)
 
     def test_filter_invalid_values(self):
-        self.bulk_populate()
+        self.switch_to_superuser()
         invalid_values = ["yes", "no", "1", "0", "maybe", "truthy"]
         for value in invalid_values:
             url = self.url_list + f"?montag={value}"
@@ -796,7 +812,7 @@ class StoreDaysViewTests(BaseTestCase):
             self.assertIn("must be 'true' or 'false'", str(response.data))
 
     def test_filter_with_url_encoding(self):
-        self.bulk_populate()
+        self.switch_to_superuser()
         encoded_urls = [
             self.url_list + "?montag%3Dtrue",
             self.url_list + "?montag=true%20",
@@ -807,7 +823,7 @@ class StoreDaysViewTests(BaseTestCase):
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_filter_non_day_parameters(self):
-        self.bulk_populate()
+        self.switch_to_superuser()
         invalid_params = ["?random=true", "?foo=false", "?not_a_day=true&montag=true"]
         for param in invalid_params:
             url = self.url_list + param
@@ -920,7 +936,7 @@ class StoreHoursViewTests(BaseTestCase):
 
     def test_filter_by_time(self):
         self.switch_to_superuser()
-        # self.bulk_populate()
+
         test_cases = {
             "opening_time": ("09:00", "12:30", "17:45", "23:00"),
             "closing_time": ("09:00", "12:30", "17:45", "23:00"),
@@ -936,7 +952,6 @@ class StoreHoursViewTests(BaseTestCase):
 
     def test_filter_by_time_range(self):
         self.switch_to_superuser()
-        # self.bulk_populate()
 
         test_cases = [
             {"opening_time": ("08:00", "gte"), "closing_time": ("16:00", "lte")},
@@ -966,7 +981,7 @@ class StoreHoursViewTests(BaseTestCase):
 
     def test_filter_duplicate_parameters(self):
         self.switch_to_superuser()
-        # self.bulk_populate()
+
         duplicate_cases = {
             "opening_time=09:00&opening_time=10:00": "Duplicate query parameter",
             "closing_time=17:00&closing_time=18:00": "Duplicate query parameter",
@@ -1024,7 +1039,7 @@ class StoreHoursViewTests(BaseTestCase):
 
     def test_filter_valid_time_format(self):
         self.switch_to_superuser()
-        # self.bulk_populate()
+
         valid_times = {
             "9:00",  # single digit hour
             "09:00",  # with leading zero
@@ -1042,7 +1057,7 @@ class StoreHoursViewTests(BaseTestCase):
 
     def test_filter_empty_queries(self):
         self.switch_to_superuser()
-        # self.bulk_populate()
+
         queries = [
             "?opening_time=",
             "?opening_time=&closing_time=",
@@ -1074,7 +1089,7 @@ class StoreHoursViewTests(BaseTestCase):
 
     def test_filter_non_time_parameters(self):
         self.switch_to_superuser()
-        # self.bulk_populate()
+
         invalid_params = {
             "?random=09:00": "Invalid query parameter",
             "?foo=17:00": "Invalid query parameter",
@@ -1089,7 +1104,7 @@ class StoreHoursViewTests(BaseTestCase):
 
     def test_filter_ordering(self):
         self.switch_to_superuser()
-        # self.bulk_populate()
+
         ordering_cases = {
             "opens": status.HTTP_200_OK,
             "-opens": status.HTTP_200_OK,
@@ -1111,12 +1126,6 @@ class StoreManagersViewTests(BaseTestCase):
         self.url_detail = reverse(
             "store-managers-detail", kwargs={"pk": self.store1.id}
         )
-
-    def url_query(self, field, specifier):
-        return f"{field}_{specifier}"
-
-    def django_query(self, field, specifier):
-        return f"{field}_ids__{specifier}"
 
     def test_store_managers_invalid_auth(self):
         self.client.credentials(HTTP_AUTHORIZATION="Token invalid_token")

@@ -272,14 +272,10 @@ class StoreFilter(FilterSet, BaseFilterValidationMixin):
 
     def filter_queryset(self, queryset):
         params = self.request.query_params
-        print(f"\nIncoming params: {params}")
-        print(f"\nAvailable filtersms: {self.filters.keys()}")
         if self.request.method == "GET":
             non_page_params = {
                 k for k in params.keys() if k not in {"page", "page_size"}
             }
-            print(f"Non-page parameters: {non_page_params}")
-
             if non_page_params:
                 self.validate_filters(params)
         return super().filter_queryset(queryset)
@@ -289,19 +285,14 @@ class StoreFilter(FilterSet, BaseFilterValidationMixin):
     def validate_filters(self, params):
         allowed_params = self.filters.keys()
         allowed_params = self._add_default_params(self.filters.keys())
-        print(allowed_params)
+
         self._base_validation(params, allowed_params)
         serializer_params = {
             k: v for k, v in params.items() if k not in self._extra_allowed_params
         }
-        print("\nabout to serialize\n")
-        print(f"\n{serializer_params}\n")
+
         serializer = StoreSerializer(
             data=serializer_params, context={"request": self.request}
         )
 
-        valid = serializer.is_valid(raise_exception=True)
-        print("\nserialized\n")
-        if not valid:
-            print("\nserializer is not valid\n")
-            print(f"\nSerializer errors: {serializer.errors}\n")
+        serializer.is_valid(raise_exception=True)
