@@ -1,7 +1,7 @@
 from stores.models import Store, DAYS_OF_WEEK
 from django.contrib.auth import get_user_model
 import random
-from datetime import time, timedelta
+from time import time
 
 User = get_user_model()
 
@@ -218,14 +218,50 @@ def generate_store_name(city):
     return prefix + mid + suffix + city
 
 
-def generate_store():
+def generate_store(owner):
     city = random.choice(CITIES)
     name = generate_store_name(city)
+    number_first = random.choice([True, False])
+    if number_first:
+        address = random.choice(STREET_NUMBERS) + " " + random.choice(STREET_NAMES)
+    else:
+        address = random.choice(STREET_NAMES)
+    store = Store.objects.create(
+        owner_id=owner,
+        name=name,
+        city=city,
+        address=address,
+        plz=random.choice(PLZ_CODES),
+        opening_time=random.choice(OPENING_TIMES),
+        closing_time=random.choice(CLOSING_TIMES),
+        state_abbrv=random.choice(STATE),
+    )
+
+    number_of_days = 0
+    while number_of_days < 3:
+        for day in DAYS:
+            setattr(store, day, False)
+            choice = random.choice([True, False])
+            if choice:
+                number_of_days += 1
+            setattr(store, day, choice)
+    store.save()
+    return store
+
+
+def generate_store_old():
+    city = random.choice(CITIES)
+    name = generate_store_name(city)
+    number_first = random.choice([True, False])
+    if number_first:
+        address = random.choice(STREET_NUMBERS) + " " + random.choice(STREET_NAMES)
+    else:
+        address = random.choice(STREET_NAMES)
     store = Store.objects.create(
         owner_id=store_owner(),
         name=name,
         city=city,
-        address=random.choice(STREET_NAMES) + random.choice(STREET_NUMBERS),
+        address=address,
         plz=random.choice(PLZ_CODES),
         opening_time=random.choice(OPENING_TIMES),
         closing_time=random.choice(CLOSING_TIMES),
@@ -247,23 +283,70 @@ def generate_store():
     return store
 
 
-def populate_database(num_stores, num_regular_users):
+def bulk_populate(num_stores, num_users, big_owner=None):
+    absolute_start_time = time()
     # First create regular users
+    users_start_time = time()
+    if num_users <= num_stores:
+        raise ValueError("Number of users must be greater than number of stores")
+    users = [generate_user() for _ in range(num_users)]
+    users_end_time = time()
+    stores_start_time = time()
+    stores = []
+    store_count = num_stores
+    while store_count > 0:
+        index = random.randint(0, len(users) - 1)
+        if big_owner:
+            store = generate_store(big_owner)
+        else:
+            store = generate_store(users.pop(index))
+        stores.append(store)
+        store_count -= 1
+    stores_end_time = time()
+    manager_assignment_start_time = time()
+    for store in stores:
+        for _ in range(random.randint(1, 4)):
+            store.manager_ids.add(random.choice(users))
+            store.save()
+    manager_assignment_end_time = time()
+    total_manager_assignment_time = (
+        manager_assignment_end_time - manager_assignment_start_time
+    )
+    total_execution_time = time() - absolute_start_time
+    total_users_time = users_end_time - users_start_time
+    total_stores_time = stores_end_time - stores_start_time
+    # print(f"Total users: {num_users}\nCreated in {total_users_time:.2f} seconds")
+    #  print(f"Total stores: {num_stores}\nCreated in {total_stores_time:.2f} seconds")
+    #   (f"Total manager assignment time: {total_manager_assignment_time:.2f} seconds")
+    #    print(f"Total execution time: {total_execution_time:.2f} seconds")
+    return stores, users
+
+
+def populate_database(num_stores, num_regular_users):
+    absolute_start_time = time()
+    # First create regular users
+    users_start_time = time()
     for _ in range(num_regular_users):
         generate_user()
-
+    users_end_time = time()
     # Create stores with random owners and managers
+    stores_start_time = time()
     for _ in range(num_stores):
-        generate_store()
-
+        generate_store_old()
+    stores_end_time = time()
+    user_execution_time = users_end_time - users_start_time
+    store_execution_time = stores_end_time - stores_start_time
+    total_execution_time = time() - absolute_start_time
     num_users = User.objects.count()
     num_stores = Store.objects.count()
-    print(f"Total users: {num_users}")
-    print(f"Total stores: {num_stores}")
+    print(f"Total users: {num_users}\nCreated in {user_execution_time:.2f} seconds")
+    print(f"Total stores: {num_stores}\nCreated in {store_execution_time:.2f} seconds")
+    print(f"Total execution time: {total_execution_time:.2f} seconds")
 
 
 def clear_database():
     # Initial counts
+    absolute_start_time = time()
     initial_users = User.objects.count()
     initial_superusers = User.objects.filter(is_superuser=True).count()
     initial_stores = Store.objects.count()
@@ -282,15 +365,32 @@ def clear_database():
     print(f"\nDeleting {deletion_count} users and {initial_stores} stores")
 
     # Perform deletion
+    stores_start_time = time()
     Store.objects.all().delete()
+    stores_end_time = time()
+    users_start_time = time()
     users_to_delete.delete()
-
+    users_end_time = time()
     # Final counts
     final_users = User.objects.count()
     final_stores = Store.objects.count()
-
+    total_execution_time = time() - absolute_start_time
+    user_execution_time = users_end_time - users_start_time
+    store_execution_time = stores_end_time - stores_start_time
     print(f"\nFinal database state:")
-    print(f"Remaining users: {final_users}")
-    print(f"Remaining stores: {final_stores}")
+    print(
+        f"Remaining users: {final_users}\n"
+        f"Deleted {initial_users - final_users} users "
+        f"in {user_execution_time:.2f} seconds."
+    )
+    print(
+        f"Remaining stores: {final_stores}"
+        f"Deleted {initial_stores - final_stores} stores "
+        f"in {store_execution_time:.2f} seconds."
+    )
+    print(
+        f"Deleted {initial_stores + initial_users - final_stores - final_users} "
+        f"records in {total_execution_time:.2f} seconds"
+    )
 
     print("Database cleared successfully")

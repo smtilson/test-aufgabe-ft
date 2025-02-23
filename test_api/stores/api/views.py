@@ -152,7 +152,6 @@ class StoreManagersView(GenericAPIView, List, Retrieve, Update):
 
 # Another approach would be to use a mixin class.
 def get_user_stores(user):
-    queryset = Store.objects.filter(
-        Q(manager_ids__in=[user]) | Q(owner_id=user)
-    ).distinct()
-    return queryset
+    if user.is_superuser:
+        return Store.objects.all()
+    return Store.objects.filter(Q(manager_ids__in=[user]) | Q(owner_id=user)).distinct()

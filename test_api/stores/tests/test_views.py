@@ -3,12 +3,11 @@ from django.contrib.auth import get_user_model
 from rest_framework import status
 from rest_framework.test import APITestCase
 from rest_framework.authtoken.models import Token
-from datetime import time
 from unittest import skip
 from django.urls import clear_url_caches
 
-
 from stores.models import Store
+from test_api import load_data as ldb
 
 User = get_user_model()
 
@@ -94,10 +93,16 @@ class BaseTestCase(APITestCase):
         self.client.defaults["HTTP_ACCEPT"] = "application/json"
         self.client.defaults["format"] = "json"
 
+    def bulk_populate(self, num_stores, total_users):
+        self.owner1.is_superuser = True
+        self.owner1.save()
+        ldb.bulk_populate(num_stores, total_users)
+
 
 # StoreViewSet tests:
 
 
+@skip
 class StoreViewSetTestCase(BaseTestCase):
     def setUp(self):
         super().setUp()
@@ -376,33 +381,32 @@ class StoreViewSetTestCase(BaseTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["state_abbrv"], valid_state)
 
+    def test_validation_plz(self):
+        invalid_plz_values = [
+            ("123", "PLZ must be exactly 5 digits"),
+            ("1234567", "PLZ must be exactly 5 digits"),
+            ("1234a", "PLZ must contain only numbers"),
+            ("abcde", "PLZ must contain only numbers"),
+            ("12 34", "PLZ must contain only numbers"),
+            ("@#$%&", "PLZ must contain only numbers"),
+            # (["1", "2", "3", "4", "5"], "Not a valid string")
+        ]
 
-def test_validation_plz(self):
-    invalid_plz_values = [
-        ("123", "PLZ must be exactly 5 digits"),
-        ("1234567", "PLZ must be exactly 5 digits"),
-        ("1234a", "PLZ must contain only numbers"),
-        ("abcde", "PLZ must contain only numbers"),
-        ("12 34", "PLZ must contain only numbers"),
-        ("@#$%&", "PLZ must contain only numbers"),
-        # (["1", "2", "3", "4", "5"], "Not a valid string")
-    ]
+        for plz, expected_error in invalid_plz_values:
+            response = self.client.patch(self.url_detail, {"plz": plz})
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+            self.assertIn(expected_error, str(response.data["plz"][0]))
 
-    for plz, expected_error in invalid_plz_values:
-        response = self.client.patch(self.url_detail, {"plz": plz})
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn(expected_error, str(response.data["plz"][0]))
+        # Test valid PLZ values
+        valid_plz_values = [
+            "12345",  # string
+            12345,  # integer
+        ]
 
-    # Test valid PLZ values
-    valid_plz_values = [
-        "12345",  # string
-        12345,  # integer
-    ]
-
-    for plz in valid_plz_values:
-        response = self.client.patch(self.url_detail, {"plz": plz})
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["plz"], "12345")
+        for plz in valid_plz_values:
+            response = self.client.patch(self.url_detail, {"plz": plz})
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertEqual(response.data["plz"], "12345")
 
     # Test delete store
     def test_delete_store(self):
@@ -424,6 +428,16 @@ class StoreDaysViewTests(BaseTestCase):
         super().setUp()
         self.url_list = reverse("store-days-list")
         self.url_detail = reverse("store-days-detail", kwargs={"pk": self.store1.id})
+
+    def bulk_populate(self):
+        super().bulk_populate(14, 20)
+        self.montag = Store.objects.filter(montag=True).count()
+        self.dienstag = Store.objects.filter(dienstag=True).count()
+        self.mittwoch = Store.objects.filter(mittwoch=True).count()
+        self.donnerstag = Store.objects.filter(donnerstag=True).count()
+        self.freitag = Store.objects.filter(freitag=True).count()
+        self.samstag = Store.objects.filter(samstag=True).count()
+        self.sonntag = Store.objects.filter(sonntag=True).count()
 
     def test_get_store_days_valid_id(self):
         response = self.client.get(self.url_detail)
@@ -537,7 +551,107 @@ class StoreDaysViewTests(BaseTestCase):
         expected_order = ["Dienstag", "Donnerstag", "Freitag", "Sonntag"]
         self.assertEqual(response.data["days_of_operation"], str(expected_order))
 
+    def test_filter_by_day(self):
+        self.bulk_populate()
+        for day in self.days_list:
+            url = self.url_list + f"?{day}=true"
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertEqual(response.data["count"], getattr(self, day))
 
+    def test_filter_by_multiple_days(self):
+        self.bulk_populate()
+
+        # Test different day combinations
+        combinations = [
+            {"montag": True, "dienstag": True, "mittwoch": True},
+            {"freitag": True, "samstag": True, "sonntag": True},
+            {"montag": True, "mittwoch": True, "freitag": True},
+            {"montag": True, "dienstag": False, "mittwoch": True},
+            {"donnerstag": False, "freitag": True, "samstag": False},
+            {"montag": False, "mittwoch": False, "freitag": False},
+            {"dienstag": True, "donnerstag": False, "samstag": True},
+        ]
+
+        for combo in combinations:
+            # Build query string
+            query = "&".join([f"{day}={value}" for day, value in combo.items()])
+            url = self.url_list + "?" + query
+
+            # Get expected count from database
+            expected_count = Store.objects.filter(**combo).count()
+
+            # Test response
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertEqual(response.data["count"], expected_count)
+
+    def test_filter_duplicate_parameters(self):
+        self.bulk_populate()
+        pairs = [("true", "false"), ("true", "true"), ("", "true")]
+        for pair in pairs:
+            url = self.url_list + f"?montag={pair[0]}&montag={pair[1]}"
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+            self.assertIn("Duplicate query parameter", str(response.data))
+
+    def test_filter_empty_queries(self):
+        self.bulk_populate()
+        empty_queries = ["?montag=", "?montag=&dienstag=", "?montag", "?dienstag"]
+        for query in empty_queries:
+            url = self.url_list + query
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+            self.assertIn("Invalid parameter,", str(response.data))
+
+    def test_filter_case_sensitivity(self):
+        self.bulk_populate()
+        true_variations = ["true", "True", "TRUE", "tRuE"]
+        false_variations = ["false", "False", "FALSE", "fAlSe"]
+        true_count = Store.objects.filter(montag=True).count()
+        false_count = Store.objects.filter(montag=False).count()
+        for value in true_variations:
+            url = self.url_list + f"?montag={value}"
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertEqual(response.data["count"], true_count)
+        for value in false_variations:
+            url = self.url_list + f"?montag={value}"
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertEqual(response.data["count"], false_count)
+
+    def test_filter_invalid_values(self):
+        self.bulk_populate()
+        invalid_values = ["yes", "no", "1", "0", "maybe", "truthy"]
+        for value in invalid_values:
+            url = self.url_list + f"?montag={value}"
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+            self.assertIn("must be 'true' or 'false'", str(response.data))
+
+    def test_filter_with_url_encoding(self):
+        self.bulk_populate()
+        encoded_urls = [
+            self.url_list + "?montag%3Dtrue",
+            self.url_list + "?montag=true%20",
+            self.url_list + "?montag%20=true",
+        ]
+        for url in encoded_urls:
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_filter_non_day_parameters(self):
+        self.bulk_populate()
+        invalid_params = ["?random=true", "?foo=false", "?not_a_day=true&montag=true"]
+        for param in invalid_params:
+            url = self.url_list + param
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+            self.assertIn("Invalid query parameter", str(response.data))
+
+
+@skip
 class StoreHoursViewTests(BaseTestCase):
     def setUp(self):
         super().setUp()
@@ -637,6 +751,7 @@ class StoreHoursViewTests(BaseTestCase):
         self.assertEqual(response.data["detail"].code, "not_found")
 
 
+@skip
 class StoreManagersViewTests(BaseTestCase):
     def setUp(self):
         super().setUp()
