@@ -12,6 +12,22 @@ from datetime import datetime
 from ..models import Store
 
 
+class BaseFilterValidationMixin:
+    def _validate_parameter_names(self, params, allowed_params):
+        invalid_params = set(params) - allowed_params
+        if invalid_params:
+            raise ValidationError(
+                f"Invalid query parameter: {invalid_params.pop()}. Must be one of: {allowed_params}"
+            )
+
+    def _check_for_duplicates(self, field, values):
+        if len(values) > 1:
+            raise ValidationError(f"Duplicate query parameter found: {field}")
+
+    def _add_pagination_params(self, allowed_params):
+        return allowed_params | {"page", "page_size", "ordering"}
+
+
 class StoreFilter(FilterSet):
     name = CharFilter(lookup_expr="icontains")
     city = CharFilter(lookup_expr="icontains")
@@ -61,22 +77,6 @@ class StoreFilter(FilterSet):
     )
 
 
-class BaseFilterValidationMixin:
-    def _validate_parameter_names(self, params, allowed_params):
-        invalid_params = set(params) - allowed_params
-        if invalid_params:
-            raise ValidationError(
-                f"Invalid query parameter: {invalid_params.pop()}. Must be one of: {allowed_params}"
-            )
-
-    def _check_for_duplicates(self, field, values):
-        if len(values) > 1:
-            raise ValidationError(f"Duplicate query parameter found: {field}")
-
-    def _add_pagination_params(self, allowed_params):
-        return allowed_params | {"page", "page_size", "ordering"}
-
-
 class DaysFilter(FilterSet, BaseFilterValidationMixin):
     montag = BooleanFilter()
     dienstag = BooleanFilter()
@@ -92,15 +92,7 @@ class DaysFilter(FilterSet, BaseFilterValidationMixin):
 
     def validate_filters(self, params):
         params = self.request.query_params
-        day_fields = {
-            "montag",
-            "dienstag",
-            "mittwoch",
-            "donnerstag",
-            "freitag",
-            "samstag",
-            "sonntag",
-        }
+        day_fields = set(self.filters.keys())
         allowed_params = self._add_pagination_params(day_fields)
 
         self._validate_parameter_names(params, allowed_params)
@@ -119,9 +111,24 @@ class DaysFilter(FilterSet, BaseFilterValidationMixin):
             )
 
 
+class tempHoursFilter(FilterSet):
+    opening_time = TimeFilter(lookup_expr="exact")
+    opening_time_lte = TimeFilter(field_name="opening_time", lookup_expr="lte")
+
+    class Meta:
+        model = Store
+        fields = ["opening_time"]
+
+
 class HoursFilter(FilterSet, BaseFilterValidationMixin):
-    opening_time = TimeFilter(lookup_expr="exact|lt|lte|gt|gte")
-    closing_time = TimeFilter(lookup_expr="exact|lt|lte|gt|gte")
+    opening_time = TimeFilter()
+    opening_time_lte = TimeFilter(field_name="opening_time", lookup_expr="lte")
+    # opening_time_gte = TimeFilter(field_name="opening_time", lookup_expr="gte")
+
+    # closing_time = TimeFilter()
+    # closing_time_lte = TimeFilter(field_name="closing_time", lookup_expr="lte")
+    # closing_time_gte = TimeFilter(field_name="closing_time", lookup_expr="gte")
+
     ordering = OrderingFilter(
         fields=(
             ("opening_time", "opens"),
@@ -129,12 +136,24 @@ class HoursFilter(FilterSet, BaseFilterValidationMixin):
         )
     )
 
+    class Meta:
+        model = Store
+        fields = {
+            "opening_time": ["exact", "lte", "gte"],
+            "closing_time": ["exact", "lte", "gte"],
+        }
+        fields = ["opening_time", "closing_time"]
+
     def filter_queryset(self, queryset):
+        params = self.request.query_params
+        print("\n\nfilter_queryset called on\n", params)
+        # filter_kwargs = self._process_params_comparison(params)
         self.validate_filters(self.request.query_params)
+        # queryset = queryset.filter(**filter_kwargs)
         return super().filter_queryset(queryset)
 
     def validate_filters(self, params):
-        time_fields = {"opening_time", "closing_time"}
+        time_fields = set(self.filters.keys())
         allowed_params = time_fields | {"page", "page_size", "ordering"}
 
         self._validate_parameter_names(params, allowed_params)
@@ -147,10 +166,14 @@ class HoursFilter(FilterSet, BaseFilterValidationMixin):
             self._validate_time_format(field, values)
 
     def _validate_time_format(self, field, values):
+        print("validating time format", field, values)
         if values and not self._is_valid_time(values[0]):
             raise ValidationError(
                 f"Invalid time format for {field}. Must be in HH:MM format (24-hour)"
             )
+        elif values and self._is_valid_time(values[0]):
+            print("valid time format")
+            print(values[0])
 
     def _is_valid_time(self, time_str):
         try:
