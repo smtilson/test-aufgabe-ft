@@ -57,10 +57,7 @@ class StoreViewSet(ModelViewSet):
 # this should be protected by manager and owner permissions
 
 
-class StoreDaysView(
-    List, Retrieve, Update, GenericAPIView
-):  # Reorder mixins before GenericAPIView
-    # print("StoreDaysView class loaded")
+class StoreDaysView(List, Retrieve, Update, GenericAPIView):
     serializer_class = DaysSerializer
     permission_classes = [IsAuthenticated]
     authentication_classes = [TokenAuthentication]
@@ -91,7 +88,6 @@ class StoreDaysView(
         return self.partial_update(request, *args, **kwargs)
 
 
-# this should be protected by manager and owner permissions
 class StoreHoursView(GenericAPIView, List, Retrieve, Update):
     serializer_class = HoursSerializer
     permission_classes = [IsAuthenticated]
@@ -124,7 +120,6 @@ class StoreHoursView(GenericAPIView, List, Retrieve, Update):
         return self.partial_update(request, *args, **kwargs)
 
 
-# protect this with owner permissions
 class StoreManagersView(GenericAPIView, List, Retrieve, Update):
     serializer_class = ManagersSerializer
     permission_classes = [IsAuthenticated]

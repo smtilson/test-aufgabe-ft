@@ -619,8 +619,6 @@ class StoreViewSetTestCase(BaseTestCase):
         for owner_id, error_msg in invalid_formats:
             url = self.url_list + f"?owner_id={owner_id}"
             response = self.client.get(url)
-            if response.status_code == status.HTTP_200_OK:
-                print(owner_id, error_msg)
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
             self.assertIn(error_msg, str(response.data))
 
@@ -641,8 +639,6 @@ class StoreViewSetTestCase(BaseTestCase):
         for name, error_msg in invalid_names:
             url = self.url_list + f"?owner_first_name={name}"
             response = self.client.get(url)
-            if error_msg not in str(response.data):
-                print(name, error_msg)
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
             self.assertIn(error_msg, str(response.data))
 
@@ -993,6 +989,7 @@ class StoreHoursViewTests(BaseTestCase):
     def format_query(self, field, value):
         return f"{field}={value}"
 
+    # Authentication Tests
     def test_store_hours_invalid_auth(self):
         self.client.credentials(HTTP_AUTHORIZATION="Token invalid_token")
 
@@ -1016,6 +1013,7 @@ class StoreHoursViewTests(BaseTestCase):
         detail_response = self.client.get(self.url_detail)
         self.assertEqual(detail_response.status_code, status.HTTP_401_UNAUTHORIZED)
 
+    # GET request Tests
     def test_get_store_hours_valid_id(self):
         response = self.client.get(self.url_detail)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -1042,6 +1040,7 @@ class StoreHoursViewTests(BaseTestCase):
         self.assertEqual(first_store["opening_time"], self.times["opening_time"])
         self.assertEqual(first_store["closing_time"], self.times["closing_time"])
 
+    # Pagination Tests
     def test_list_pagination(self):
         response = self.client.get(self.url_list, {"page": 1, "page_size": 1})
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -1055,6 +1054,7 @@ class StoreHoursViewTests(BaseTestCase):
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
         self.assertEqual(response.data["detail"].code, "not_found")
 
+    # Update Tests
     def test_update_store_hours_success(self):
         data = {"opening_time": "11:00:00", "closing_time": "20:00:00"}
         response = self.client.put(self.url_detail, data)
@@ -1085,6 +1085,7 @@ class StoreHoursViewTests(BaseTestCase):
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
         self.assertEqual(response.data["detail"].code, "not_found")
 
+    # Filter Tests
     def test_filter_by_time(self):
         self.switch_to_superuser()
 
@@ -1162,10 +1163,6 @@ class StoreHoursViewTests(BaseTestCase):
         for time, error_msg in invalid_formats.items():
             url = self.url_list + f"?opening_time={time}"
             response = self.client.get(url)
-            if response.status_code != status.HTTP_400_BAD_REQUEST:
-                print(response.data)
-                print(time)
-                print(error_msg)
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
             self.assertIn(error_msg, str(response.data))
 
@@ -1233,9 +1230,6 @@ class StoreHoursViewTests(BaseTestCase):
 
         for url in malformed_urls:
             response = self.client.get(url)
-            if response.status_code != status.HTTP_400_BAD_REQUEST:
-                print(url)
-                print(response.data)
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_filter_non_time_parameters(self):
@@ -1277,6 +1271,7 @@ class StoreManagersViewTests(BaseTestCase):
             "store-managers-detail", kwargs={"pk": self.store1.id}
         )
 
+    # Authentication Tests
     def test_store_managers_invalid_auth(self):
         self.client.credentials(HTTP_AUTHORIZATION="Token invalid_token")
 
@@ -1299,6 +1294,7 @@ class StoreManagersViewTests(BaseTestCase):
         detail_response = self.client.get(self.url_detail)
         self.assertEqual(detail_response.status_code, status.HTTP_401_UNAUTHORIZED)
 
+    # GET request tests
     def test_get_store_managers_valid_id(self):
         response = self.client.get(self.url_detail)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -1322,6 +1318,7 @@ class StoreManagersViewTests(BaseTestCase):
         self.assertEqual(first_store["id"], self.store1.id)
         self.assertIn(self.manager1.id, first_store["manager_ids"])
 
+    # Pagination Tests
     def test_list_pagination(self):
         response = self.client.get(self.url_list, {"page": 1, "page_size": 1})
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -1335,6 +1332,7 @@ class StoreManagersViewTests(BaseTestCase):
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
         self.assertEqual(response.data["detail"].code, "not_found")
 
+    # Update Tests
     def test_add_new_manager(self):
         data = {"manager_ids": [self.manager2.id]}
         response = self.client.put(self.url_detail, data)
@@ -1362,6 +1360,7 @@ class StoreManagersViewTests(BaseTestCase):
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
         self.assertEqual(response.data["detail"].code, "not_found")
 
+    # Filter Tests
     def test_filter_by_manager_id(self):
         self.switch_to_superuser()
 
@@ -1417,8 +1416,6 @@ class StoreManagersViewTests(BaseTestCase):
         for manager_id, error_msg in invalid_formats:
             url = self.url_list + f"?manager_ids={manager_id}"
             response = self.client.get(url)
-            if response.status_code == status.HTTP_200_OK:
-                print(manager_id, error_msg)
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
             self.assertIn(error_msg, str(response.data))
 
@@ -1482,8 +1479,6 @@ class StoreManagersViewTests(BaseTestCase):
         for name, error_msg in invalid_names:
             url = self.url_list + f"?manager_first_name={name}"
             response = self.client.get(url)
-            if error_msg not in str(response.data):
-                print(name, error_msg)
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
             self.assertIn(error_msg, str(response.data))
 
