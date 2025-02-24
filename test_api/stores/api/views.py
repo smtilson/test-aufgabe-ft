@@ -47,7 +47,7 @@ class StoreViewsPagination(PageNumberPagination):
 class StoreViewSet(ModelViewSet):
     serializer_class = StoreSerializer
     permission_classes = [IsAuthenticated]
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [TokenAuthentication, SessionAuthentication]
     pagination_class = StoreViewsPagination
     filterset_class = StoreFilter
     http_method_names = ["get", "post", "put", "patch", "delete"]
@@ -71,7 +71,7 @@ class StoreViewSet(ModelViewSet):
 class StoreDaysView(List, Retrieve, Update, GenericAPIView):
     serializer_class = DaysSerializer
     permission_classes = [IsAuthenticated]
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [TokenAuthentication, SessionAuthentication]
     pagination_class = StoreViewsPagination
     filterset_class = DaysFilter
     http_method_names = ["get", "put", "patch"]
@@ -102,7 +102,7 @@ class StoreDaysView(List, Retrieve, Update, GenericAPIView):
 class StoreHoursView(GenericAPIView, List, Retrieve, Update):
     serializer_class = HoursSerializer
     permission_classes = [IsAuthenticated]
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [TokenAuthentication, SessionAuthentication]
     pagination_class = StoreViewsPagination
     filterset_class = HoursFilter
     http_method_names = ["get", "put", "patch"]
@@ -134,7 +134,7 @@ class StoreHoursView(GenericAPIView, List, Retrieve, Update):
 class StoreManagersView(GenericAPIView, List, Retrieve, Update):
     serializer_class = ManagersSerializer
     permission_classes = [IsAuthenticated]
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [TokenAuthentication, SessionAuthentication]
     pagination_class = StoreViewsPagination
     filterset_class = ManagersFilter
     http_method_names = ["get", "put", "patch"]

@@ -18,7 +18,7 @@ from rest_framework.views import APIView
 from rest_framework.generics import CreateAPIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
-
+from rest_framework.authentication import TokenAuthentication, SessionAuthentication
 from rest_framework.authtoken.models import Token
 
 from django.contrib.auth import authenticate
@@ -30,6 +30,7 @@ class CustomUserViewSet(ModelViewSet):
     queryset = CustomUser.objects.all().order_by("id")
     serializer_class = CustomUserSerializer
     filterset_class = UserFilter
+    authentication_classes = [TokenAuthentication, SessionAuthentication]
 
 
 class SignupView(CreateAPIView):
