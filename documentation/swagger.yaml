@@ -1,0 +1,1326 @@
+swagger: '2.0'
+info:
+  title: FoodTracks Test API
+  description: API documentation for the test project.
+  termsOfService: https://www.example.com/terms/
+  contact:
+    email: seantilson@gmail.com
+  license:
+    name: MIT License
+  version: v1
+host: 127.0.0.1:8000
+schemes:
+- http
+basePath: /
+consumes:
+- application/json
+produces:
+- application/json
+securityDefinitions:
+  Basic:
+    type: basic
+security:
+- Basic: []
+paths:
+  /api-token-auth/:
+    post:
+      operationId: api-token-auth_create
+      description: ''
+      parameters:
+      - name: data
+        in: body
+        required: true
+        schema:
+          $ref: '#/definitions/AuthToken'
+      responses:
+        '201':
+          description: ''
+          schema:
+            $ref: '#/definitions/AuthToken'
+      tags:
+      - api-token-auth
+    parameters: []
+  /api/api/orders/:
+    get:
+      operationId: api_api_orders_list
+      description: ''
+      parameters:
+      - name: page
+        in: query
+        description: A page number within the paginated result set.
+        required: false
+        type: integer
+      responses:
+        '200':
+          description: ''
+          schema:
+            required:
+            - count
+            - results
+            type: object
+            properties:
+              count:
+                type: integer
+              next:
+                type: string
+                format: uri
+                x-nullable: true
+              previous:
+                type: string
+                format: uri
+                x-nullable: true
+              results:
+                type: array
+                items:
+                  $ref: '#/definitions/Order'
+      tags:
+      - api
+    post:
+      operationId: api_api_orders_create
+      description: ''
+      parameters:
+      - name: data
+        in: body
+        required: true
+        schema:
+          $ref: '#/definitions/Order'
+      responses:
+        '201':
+          description: ''
+          schema:
+            $ref: '#/definitions/Order'
+      tags:
+      - api
+    parameters: []
+  /api/api/orders/{id}/:
+    get:
+      operationId: api_api_orders_read
+      description: ''
+      parameters: []
+      responses:
+        '200':
+          description: ''
+          schema:
+            $ref: '#/definitions/Order'
+      tags:
+      - api
+    put:
+      operationId: api_api_orders_update
+      description: ''
+      parameters:
+      - name: data
+        in: body
+        required: true
+        schema:
+          $ref: '#/definitions/Order'
+      responses:
+        '200':
+          description: ''
+          schema:
+            $ref: '#/definitions/Order'
+      tags:
+      - api
+    patch:
+      operationId: api_api_orders_partial_update
+      description: ''
+      parameters:
+      - name: data
+        in: body
+        required: true
+        schema:
+          $ref: '#/definitions/Order'
+      responses:
+        '200':
+          description: ''
+          schema:
+            $ref: '#/definitions/Order'
+      tags:
+      - api
+    delete:
+      operationId: api_api_orders_delete
+      description: ''
+      parameters: []
+      responses:
+        '204':
+          description: ''
+      tags:
+      - api
+    parameters:
+    - name: id
+      in: path
+      description: A unique integer value identifying this order.
+      required: true
+      type: integer
+  /api/api/packages/:
+    get:
+      operationId: api_api_packages_list
+      description: ''
+      parameters:
+      - name: page
+        in: query
+        description: A page number within the paginated result set.
+        required: false
+        type: integer
+      responses:
+        '200':
+          description: ''
+          schema:
+            required:
+            - count
+            - results
+            type: object
+            properties:
+              count:
+                type: integer
+              next:
+                type: string
+                format: uri
+                x-nullable: true
+              previous:
+                type: string
+                format: uri
+                x-nullable: true
+              results:
+                type: array
+                items:
+                  $ref: '#/definitions/Package'
+      tags:
+      - api
+    post:
+      operationId: api_api_packages_create
+      description: ''
+      parameters:
+      - name: data
+        in: body
+        required: true
+        schema:
+          $ref: '#/definitions/Package'
+      responses:
+        '201':
+          description: ''
+          schema:
+            $ref: '#/definitions/Package'
+      tags:
+      - api
+    parameters: []
+  /api/api/packages/{id}/:
+    get:
+      operationId: api_api_packages_read
+      description: ''
+      parameters: []
+      responses:
+        '200':
+          description: ''
+          schema:
+            $ref: '#/definitions/Package'
+      tags:
+      - api
+    put:
+      operationId: api_api_packages_update
+      description: ''
+      parameters:
+      - name: data
+        in: body
+        required: true
+        schema:
+          $ref: '#/definitions/Package'
+      responses:
+        '200':
+          description: ''
+          schema:
+            $ref: '#/definitions/Package'
+      tags:
+      - api
+    patch:
+      operationId: api_api_packages_partial_update
+      description: ''
+      parameters:
+      - name: data
+        in: body
+        required: true
+        schema:
+          $ref: '#/definitions/Package'
+      responses:
+        '200':
+          description: ''
+          schema:
+            $ref: '#/definitions/Package'
+      tags:
+      - api
+    delete:
+      operationId: api_api_packages_delete
+      description: ''
+      parameters: []
+      responses:
+        '204':
+          description: ''
+      tags:
+      - api
+    parameters:
+    - name: id
+      in: path
+      description: A unique integer value identifying this package.
+      required: true
+      type: integer
+  /days-detail/{id}/:
+    get:
+      operationId: days-detail_read
+      description: ''
+      parameters:
+      - name: page
+        in: query
+        description: A page number within the paginated result set.
+        required: false
+        type: integer
+      - name: page_size
+        in: query
+        description: Number of results to return per page.
+        required: false
+        type: integer
+      responses:
+        '200':
+          description: ''
+          schema:
+            required:
+            - count
+            - results
+            type: object
+            properties:
+              count:
+                type: integer
+              next:
+                type: string
+                format: uri
+                x-nullable: true
+              previous:
+                type: string
+                format: uri
+                x-nullable: true
+              results:
+                type: array
+                items:
+                  $ref: '#/definitions/Days'
+      tags:
+      - days-detail
+    patch:
+      operationId: days-detail_partial_update
+      description: ''
+      parameters:
+      - name: data
+        in: body
+        required: true
+        schema:
+          $ref: '#/definitions/Days'
+      responses:
+        '200':
+          description: ''
+          schema:
+            $ref: '#/definitions/Days'
+      tags:
+      - days-detail
+    parameters:
+    - name: id
+      in: path
+      required: true
+      type: string
+  /days-list/:
+    get:
+      operationId: days-list_read
+      description: ''
+      parameters:
+      - name: page
+        in: query
+        description: A page number within the paginated result set.
+        required: false
+        type: integer
+      - name: page_size
+        in: query
+        description: Number of results to return per page.
+        required: false
+        type: integer
+      responses:
+        '200':
+          description: ''
+          schema:
+            required:
+            - count
+            - results
+            type: object
+            properties:
+              count:
+                type: integer
+              next:
+                type: string
+                format: uri
+                x-nullable: true
+              previous:
+                type: string
+                format: uri
+                x-nullable: true
+              results:
+                type: array
+                items:
+                  $ref: '#/definitions/Days'
+      tags:
+      - days-list
+    patch:
+      operationId: days-list_partial_update
+      description: ''
+      parameters:
+      - name: data
+        in: body
+        required: true
+        schema:
+          $ref: '#/definitions/Days'
+      responses:
+        '200':
+          description: ''
+          schema:
+            $ref: '#/definitions/Days'
+      tags:
+      - days-list
+    parameters: []
+  /hours-detail/{id}/:
+    get:
+      operationId: hours-detail_read
+      description: ''
+      parameters:
+      - name: page
+        in: query
+        description: A page number within the paginated result set.
+        required: false
+        type: integer
+      - name: page_size
+        in: query
+        description: Number of results to return per page.
+        required: false
+        type: integer
+      responses:
+        '200':
+          description: ''
+          schema:
+            required:
+            - count
+            - results
+            type: object
+            properties:
+              count:
+                type: integer
+              next:
+                type: string
+                format: uri
+                x-nullable: true
+              previous:
+                type: string
+                format: uri
+                x-nullable: true
+              results:
+                type: array
+                items:
+                  $ref: '#/definitions/Hours'
+      tags:
+      - hours-detail
+    put:
+      operationId: hours-detail_update
+      description: ''
+      parameters:
+      - name: data
+        in: body
+        required: true
+        schema:
+          $ref: '#/definitions/Hours'
+      responses:
+        '200':
+          description: ''
+          schema:
+            $ref: '#/definitions/Hours'
+      tags:
+      - hours-detail
+    patch:
+      operationId: hours-detail_partial_update
+      description: ''
+      parameters:
+      - name: data
+        in: body
+        required: true
+        schema:
+          $ref: '#/definitions/Hours'
+      responses:
+        '200':
+          description: ''
+          schema:
+            $ref: '#/definitions/Hours'
+      tags:
+      - hours-detail
+    parameters:
+    - name: id
+      in: path
+      required: true
+      type: string
+  /hours-list/:
+    get:
+      operationId: hours-list_read
+      description: ''
+      parameters:
+      - name: page
+        in: query
+        description: A page number within the paginated result set.
+        required: false
+        type: integer
+      - name: page_size
+        in: query
+        description: Number of results to return per page.
+        required: false
+        type: integer
+      responses:
+        '200':
+          description: ''
+          schema:
+            required:
+            - count
+            - results
+            type: object
+            properties:
+              count:
+                type: integer
+              next:
+                type: string
+                format: uri
+                x-nullable: true
+              previous:
+                type: string
+                format: uri
+                x-nullable: true
+              results:
+                type: array
+                items:
+                  $ref: '#/definitions/Hours'
+      tags:
+      - hours-list
+    put:
+      operationId: hours-list_update
+      description: ''
+      parameters:
+      - name: data
+        in: body
+        required: true
+        schema:
+          $ref: '#/definitions/Hours'
+      responses:
+        '200':
+          description: ''
+          schema:
+            $ref: '#/definitions/Hours'
+      tags:
+      - hours-list
+    patch:
+      operationId: hours-list_partial_update
+      description: ''
+      parameters:
+      - name: data
+        in: body
+        required: true
+        schema:
+          $ref: '#/definitions/Hours'
+      responses:
+        '200':
+          description: ''
+          schema:
+            $ref: '#/definitions/Hours'
+      tags:
+      - hours-list
+    parameters: []
+  /login/:
+    get:
+      operationId: login_list
+      description: Allows for API-GUI form.
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      tags:
+      - login
+    post:
+      operationId: login_create
+      description: ''
+      parameters: []
+      responses:
+        '201':
+          description: ''
+      tags:
+      - login
+    parameters: []
+  /managers-detail/{id}/:
+    get:
+      operationId: managers-detail_read
+      description: ''
+      parameters:
+      - name: page
+        in: query
+        description: A page number within the paginated result set.
+        required: false
+        type: integer
+      - name: page_size
+        in: query
+        description: Number of results to return per page.
+        required: false
+        type: integer
+      responses:
+        '200':
+          description: ''
+          schema:
+            required:
+            - count
+            - results
+            type: object
+            properties:
+              count:
+                type: integer
+              next:
+                type: string
+                format: uri
+                x-nullable: true
+              previous:
+                type: string
+                format: uri
+                x-nullable: true
+              results:
+                type: array
+                items:
+                  $ref: '#/definitions/Managers'
+      tags:
+      - managers-detail
+    put:
+      operationId: managers-detail_update
+      description: ''
+      parameters:
+      - name: data
+        in: body
+        required: true
+        schema:
+          $ref: '#/definitions/Managers'
+      responses:
+        '200':
+          description: ''
+          schema:
+            $ref: '#/definitions/Managers'
+      tags:
+      - managers-detail
+    patch:
+      operationId: managers-detail_partial_update
+      description: ''
+      parameters:
+      - name: data
+        in: body
+        required: true
+        schema:
+          $ref: '#/definitions/Managers'
+      responses:
+        '200':
+          description: ''
+          schema:
+            $ref: '#/definitions/Managers'
+      tags:
+      - managers-detail
+    parameters:
+    - name: id
+      in: path
+      required: true
+      type: string
+  /managers-list/:
+    get:
+      operationId: managers-list_read
+      description: ''
+      parameters:
+      - name: page
+        in: query
+        description: A page number within the paginated result set.
+        required: false
+        type: integer
+      - name: page_size
+        in: query
+        description: Number of results to return per page.
+        required: false
+        type: integer
+      responses:
+        '200':
+          description: ''
+          schema:
+            required:
+            - count
+            - results
+            type: object
+            properties:
+              count:
+                type: integer
+              next:
+                type: string
+                format: uri
+                x-nullable: true
+              previous:
+                type: string
+                format: uri
+                x-nullable: true
+              results:
+                type: array
+                items:
+                  $ref: '#/definitions/Managers'
+      tags:
+      - managers-list
+    put:
+      operationId: managers-list_update
+      description: ''
+      parameters:
+      - name: data
+        in: body
+        required: true
+        schema:
+          $ref: '#/definitions/Managers'
+      responses:
+        '200':
+          description: ''
+          schema:
+            $ref: '#/definitions/Managers'
+      tags:
+      - managers-list
+    patch:
+      operationId: managers-list_partial_update
+      description: ''
+      parameters:
+      - name: data
+        in: body
+        required: true
+        schema:
+          $ref: '#/definitions/Managers'
+      responses:
+        '200':
+          description: ''
+          schema:
+            $ref: '#/definitions/Managers'
+      tags:
+      - managers-list
+    parameters: []
+  /signup/:
+    get:
+      operationId: signup_list
+      description: ''
+      parameters:
+      - name: page
+        in: query
+        description: A page number within the paginated result set.
+        required: false
+        type: integer
+      responses:
+        '200':
+          description: ''
+          schema:
+            required:
+            - count
+            - results
+            type: object
+            properties:
+              count:
+                type: integer
+              next:
+                type: string
+                format: uri
+                x-nullable: true
+              previous:
+                type: string
+                format: uri
+                x-nullable: true
+              results:
+                type: array
+                items:
+                  $ref: '#/definitions/SignUp'
+      tags:
+      - signup
+    post:
+      operationId: signup_create
+      description: ''
+      parameters:
+      - name: data
+        in: body
+        required: true
+        schema:
+          $ref: '#/definitions/SignUp'
+      responses:
+        '201':
+          description: ''
+          schema:
+            $ref: '#/definitions/SignUp'
+      tags:
+      - signup
+    parameters: []
+  /stores/:
+    get:
+      operationId: stores_list
+      description: ''
+      parameters:
+      - name: page
+        in: query
+        description: A page number within the paginated result set.
+        required: false
+        type: integer
+      - name: page_size
+        in: query
+        description: Number of results to return per page.
+        required: false
+        type: integer
+      responses:
+        '200':
+          description: ''
+          schema:
+            required:
+            - count
+            - results
+            type: object
+            properties:
+              count:
+                type: integer
+              next:
+                type: string
+                format: uri
+                x-nullable: true
+              previous:
+                type: string
+                format: uri
+                x-nullable: true
+              results:
+                type: array
+                items:
+                  $ref: '#/definitions/Store'
+      tags:
+      - stores
+    post:
+      operationId: stores_create
+      description: ''
+      parameters:
+      - name: data
+        in: body
+        required: true
+        schema:
+          $ref: '#/definitions/Store'
+      responses:
+        '201':
+          description: ''
+          schema:
+            $ref: '#/definitions/Store'
+      tags:
+      - stores
+    parameters: []
+  /stores/{id}/:
+    get:
+      operationId: stores_read
+      description: ''
+      parameters: []
+      responses:
+        '200':
+          description: ''
+          schema:
+            $ref: '#/definitions/Store'
+      tags:
+      - stores
+    put:
+      operationId: stores_update
+      description: ''
+      parameters:
+      - name: data
+        in: body
+        required: true
+        schema:
+          $ref: '#/definitions/Store'
+      responses:
+        '200':
+          description: ''
+          schema:
+            $ref: '#/definitions/Store'
+      tags:
+      - stores
+    patch:
+      operationId: stores_partial_update
+      description: ''
+      parameters:
+      - name: data
+        in: body
+        required: true
+        schema:
+          $ref: '#/definitions/Store'
+      responses:
+        '200':
+          description: ''
+          schema:
+            $ref: '#/definitions/Store'
+      tags:
+      - stores
+    delete:
+      operationId: stores_delete
+      description: ''
+      parameters: []
+      responses:
+        '204':
+          description: ''
+      tags:
+      - stores
+    parameters:
+    - name: id
+      in: path
+      required: true
+      type: string
+  /users/:
+    get:
+      operationId: users_list
+      description: ''
+      parameters:
+      - name: page
+        in: query
+        description: A page number within the paginated result set.
+        required: false
+        type: integer
+      responses:
+        '200':
+          description: ''
+          schema:
+            required:
+            - count
+            - results
+            type: object
+            properties:
+              count:
+                type: integer
+              next:
+                type: string
+                format: uri
+                x-nullable: true
+              previous:
+                type: string
+                format: uri
+                x-nullable: true
+              results:
+                type: array
+                items:
+                  $ref: '#/definitions/CustomUser'
+      tags:
+      - users
+    post:
+      operationId: users_create
+      description: ''
+      parameters:
+      - name: data
+        in: body
+        required: true
+        schema:
+          $ref: '#/definitions/CustomUser'
+      responses:
+        '201':
+          description: ''
+          schema:
+            $ref: '#/definitions/CustomUser'
+      tags:
+      - users
+    parameters: []
+  /users/{id}/:
+    get:
+      operationId: users_read
+      description: ''
+      parameters: []
+      responses:
+        '200':
+          description: ''
+          schema:
+            $ref: '#/definitions/CustomUser'
+      tags:
+      - users
+    put:
+      operationId: users_update
+      description: ''
+      parameters:
+      - name: data
+        in: body
+        required: true
+        schema:
+          $ref: '#/definitions/CustomUser'
+      responses:
+        '200':
+          description: ''
+          schema:
+            $ref: '#/definitions/CustomUser'
+      tags:
+      - users
+    patch:
+      operationId: users_partial_update
+      description: ''
+      parameters:
+      - name: data
+        in: body
+        required: true
+        schema:
+          $ref: '#/definitions/CustomUser'
+      responses:
+        '200':
+          description: ''
+          schema:
+            $ref: '#/definitions/CustomUser'
+      tags:
+      - users
+    delete:
+      operationId: users_delete
+      description: ''
+      parameters: []
+      responses:
+        '204':
+          description: ''
+      tags:
+      - users
+    parameters:
+    - name: id
+      in: path
+      description: A unique integer value identifying this custom user.
+      required: true
+      type: integer
+definitions:
+  AuthToken:
+    required:
+    - username
+    - password
+    type: object
+    properties:
+      username:
+        title: Username
+        type: string
+        minLength: 1
+      password:
+        title: Password
+        type: string
+        minLength: 1
+      token:
+        title: Token
+        type: string
+        readOnly: true
+        minLength: 1
+  Order:
+    required:
+    - package
+    - quantity
+    - total_price
+    type: object
+    properties:
+      id:
+        title: ID
+        type: integer
+        readOnly: true
+      package:
+        type: array
+        items:
+          type: string
+        uniqueItems: true
+      quantity:
+        title: Quantity
+        type: integer
+        maximum: 9223372036854775807
+        minimum: -9223372036854775808
+      total_price:
+        title: Total price
+        type: string
+        format: decimal
+  Package:
+    required:
+    - name
+    - price
+    type: object
+    properties:
+      id:
+        title: ID
+        type: integer
+        readOnly: true
+      name:
+        title: Name
+        type: string
+        maxLength: 100
+        minLength: 1
+      price:
+        title: Price
+        type: string
+        format: decimal
+  Days:
+    type: object
+    properties:
+      id:
+        title: Id
+        type: integer
+        readOnly: true
+      name:
+        title: Name
+        type: string
+        readOnly: true
+        minLength: 1
+      owner:
+        title: Owner
+        type: string
+        readOnly: true
+      managers:
+        title: Managers
+        type: string
+        readOnly: true
+      days_of_operation:
+        title: Days of operation
+        type: string
+        readOnly: true
+      montag:
+        title: Montag
+        type: boolean
+      dienstag:
+        title: Dienstag
+        type: boolean
+      mittwoch:
+        title: Mittwoch
+        type: boolean
+      donnerstag:
+        title: Donnerstag
+        type: boolean
+      freitag:
+        title: Freitag
+        type: boolean
+      samstag:
+        title: Samstag
+        type: boolean
+      sonntag:
+        title: Sonntag
+        type: boolean
+  Hours:
+    type: object
+    properties:
+      id:
+        title: Id
+        type: integer
+        readOnly: true
+      name:
+        title: Name
+        type: string
+        readOnly: true
+        minLength: 1
+      owner:
+        title: Owner
+        type: string
+        readOnly: true
+      managers:
+        title: Managers
+        type: string
+        readOnly: true
+      days_of_operation:
+        title: Days of operation
+        type: string
+        readOnly: true
+      opening_time:
+        title: Opening time
+        type: string
+      closing_time:
+        title: Closing time
+        type: string
+  Managers:
+    type: object
+    properties:
+      id:
+        title: Id
+        type: integer
+        readOnly: true
+      name:
+        title: Name
+        type: string
+        readOnly: true
+        minLength: 1
+      owner:
+        title: Owner
+        type: string
+        readOnly: true
+      managers:
+        title: Managers
+        type: string
+        readOnly: true
+      manager_ids:
+        type: array
+        items:
+          type: integer
+        uniqueItems: true
+      days_of_operation:
+        title: Days of operation
+        type: string
+        readOnly: true
+  SignUp:
+    required:
+    - first_name
+    - last_name
+    - email
+    - password
+    type: object
+    properties:
+      first_name:
+        title: First name
+        type: string
+        maxLength: 30
+        minLength: 1
+      last_name:
+        title: Last name
+        type: string
+        maxLength: 150
+        minLength: 1
+      email:
+        title: Email
+        type: string
+        format: email
+        maxLength: 254
+        minLength: 1
+      password:
+        title: Password
+        type: string
+        minLength: 1
+  Store:
+    type: object
+    properties:
+      id:
+        title: ID
+        type: integer
+        readOnly: true
+      days_of_operation:
+        title: Days of operation
+        type: string
+        readOnly: true
+      owner:
+        title: Owner
+        type: string
+        readOnly: true
+      owner_id:
+        title: Owner id
+        type: integer
+      managers:
+        title: Managers
+        type: string
+        readOnly: true
+      name:
+        title: Name
+        type: string
+        minLength: 1
+      address:
+        title: Address
+        type: string
+        minLength: 1
+      city:
+        title: City
+        type: string
+        minLength: 1
+      state_abbrv:
+        title: State abbrv
+        type: string
+        maxLength: 2
+        minLength: 1
+      plz:
+        title: Plz
+        type: string
+        minLength: 1
+      opening_time:
+        title: Opening time
+        type: string
+      closing_time:
+        title: Closing time
+        type: string
+      montag:
+        title: Montag
+        type: boolean
+      dienstag:
+        title: Dienstag
+        type: boolean
+      mittwoch:
+        title: Mittwoch
+        type: boolean
+      donnerstag:
+        title: Donnerstag
+        type: boolean
+      freitag:
+        title: Freitag
+        type: boolean
+      samstag:
+        title: Samstag
+        type: boolean
+      sonntag:
+        title: Sonntag
+        type: boolean
+      manager_ids:
+        type: array
+        items:
+          type: integer
+        uniqueItems: true
+      created_at:
+        title: Created at
+        type: string
+        format: date-time
+        readOnly: true
+      updated_at:
+        title: Updated at
+        type: string
+        format: date-time
+        readOnly: true
+  CustomUser:
+    required:
+    - first_name
+    - last_name
+    - email
+    - password
+    type: object
+    properties:
+      id:
+        title: ID
+        type: integer
+        readOnly: true
+      first_name:
+        title: First name
+        type: string
+        maxLength: 30
+        minLength: 1
+      last_name:
+        title: Last name
+        type: string
+        maxLength: 150
+        minLength: 1
+      email:
+        title: Email
+        type: string
+        format: email
+        maxLength: 254
+        minLength: 1
+      password:
+        title: Password
+        type: string
+        minLength: 1
+      date_joined:
+        title: Date joined
+        type: string
+        format: date-time
+        readOnly: true
+      last_login:
+        title: Last login
+        type: string
+        format: date-time
+        readOnly: true
+        x-nullable: true
+      is_superuser:
+        title: Superuser status
+        description: Designates that this user has all permissions without explicitly
+          assigning them.
+        type: boolean
+        readOnly: true
+      is_staff:
+        title: Is staff
+        type: boolean
+        readOnly: true
+      is_manager:
+        title: Is manager
+        type: string
+        readOnly: true
+      is_owner:
+        title: Is owner
+        type: string
+        readOnly: true
+      token:
+        title: Token
+        type: string
+        readOnly: true

@@ -1,21 +1,25 @@
 from ..models import CustomUser
 from .serializers import CustomUserSerializer, SignUpSerializer, LoginSerializer
-from rest_framework import status
+from .filters import UserFilter
+from rest_framework import status, filters
+from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.views import APIView
 from rest_framework.generics import CreateAPIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
+
 from rest_framework.authtoken.models import Token
 
 from django.contrib.auth import authenticate
+from .permissions import IsSuperUser
 
 
 class CustomUserViewSet(ModelViewSet):
-    # remove when not debugging.
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsSuperUser]
     queryset = CustomUser.objects.all().order_by("id")
     serializer_class = CustomUserSerializer
+    filterset_class = UserFilter
 
 
 class SignupView(CreateAPIView):

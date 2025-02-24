@@ -108,15 +108,8 @@ class StoreSerializer(serializers.ModelSerializer):
             )
 
     def check_empty_update(self, data):
-        # print("check empty called")
-        # print(self.context["request"])
-        # print(self.context["request"].method)
         if self.context["request"].method == "PATCH":
-            #   print("hit patch block")
-
-            #  print("data: ", data)
             for field_name, value in data.items():
-                #     print(field_name, "|", value, "|", type(value))
                 if isinstance(value, str) and not value.strip():
                     raise serializers.ValidationError(
                         {field_name: "You cannot update a field to be empty"}

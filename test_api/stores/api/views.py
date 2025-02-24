@@ -1,22 +1,19 @@
+from rest_framework import status
+from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
-from rest_framework.views import APIView
 from rest_framework.generics import GenericAPIView
 from rest_framework.mixins import (
     RetrieveModelMixin as Retrieve,
     ListModelMixin as List,
     UpdateModelMixin as Update,
-    DestroyModelMixin as Destroy,
-    CreateModelMixin as Create,
 )
 
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.authentication import TokenAuthentication, SessionAuthentication
-from rest_framework.response import Response
-from rest_framework import status
 from rest_framework.pagination import PageNumberPagination
 from django.db.models import Q
 from ..models import Store
-
+from .filters import StoreFilter, DaysFilter, HoursFilter, ManagersFilter
 from .serializers import (
     StoreSerializer,
     DaysSerializer,
@@ -35,8 +32,10 @@ class StoreViewsPagination(PageNumberPagination):
 class StoreViewSet(ModelViewSet):
     serializer_class = StoreSerializer
     permission_classes = [IsAuthenticated]
-    authentication_classes = [TokenAuthentication, SessionAuthentication]
+    authentication_classes = [TokenAuthentication]
     pagination_class = StoreViewsPagination
+    # filter_backends = [OrderingFilter]
+    filterset_class = StoreFilter
     http_method_names = ["get", "post", "put", "patch", "delete"]
 
     def get_queryset(self):
@@ -58,14 +57,12 @@ class StoreViewSet(ModelViewSet):
 # this should be protected by manager and owner permissions
 
 
-class StoreDaysView(
-    List, Retrieve, Update, GenericAPIView
-):  # Reorder mixins before GenericAPIView
-    # print("StoreDaysView class loaded")
+class StoreDaysView(List, Retrieve, Update, GenericAPIView):
     serializer_class = DaysSerializer
     permission_classes = [IsAuthenticated]
-    authentication_classes = [TokenAuthentication, SessionAuthentication]
+    authentication_classes = [TokenAuthentication]
     pagination_class = StoreViewsPagination
+    filterset_class = DaysFilter
     http_method_names = ["get", "put", "patch"]
 
     def get_queryset(self):
@@ -86,15 +83,17 @@ class StoreDaysView(
         return response
 
     def patch(self, request, *args, **kwargs):
+        if is_list_view(request):
+            return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
         return self.partial_update(request, *args, **kwargs)
 
 
-# this should be protected by manager and owner permissions
 class StoreHoursView(GenericAPIView, List, Retrieve, Update):
     serializer_class = HoursSerializer
     permission_classes = [IsAuthenticated]
-    authentication_classes = [TokenAuthentication, SessionAuthentication]
+    authentication_classes = [TokenAuthentication]
     pagination_class = StoreViewsPagination
+    filterset_class = HoursFilter
     http_method_names = ["get", "put", "patch"]
 
     def get_queryset(self):
@@ -116,19 +115,21 @@ class StoreHoursView(GenericAPIView, List, Retrieve, Update):
         return response
 
     def patch(self, request, *args, **kwargs):
+        if is_list_view(request):
+            return Response(status=status.HTTP_405_METHOD_NOT)
         return self.partial_update(request, *args, **kwargs)
 
 
-# protect this with owner permissions
 class StoreManagersView(GenericAPIView, List, Retrieve, Update):
     serializer_class = ManagersSerializer
     permission_classes = [IsAuthenticated]
-    authentication_classes = [TokenAuthentication, SessionAuthentication]
+    authentication_classes = [TokenAuthentication]
     pagination_class = StoreViewsPagination
+    filterset_class = ManagersFilter
     http_method_names = ["get", "put", "patch"]
 
     def get_queryset(self):
-        return get_user_stores(self.request.user)
+        return Store.objects.filter(Q(owner_id=self.request.user))
 
     def get(self, request, *args, **kwargs):
         pk = kwargs.get("pk", None)
@@ -148,72 +149,17 @@ class StoreManagersView(GenericAPIView, List, Retrieve, Update):
         return response
 
     def patch(self, request, *args, **kwargs):
+        if is_list_view(request):
+            return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
         return self.partial_update(request, *args, **kwargs)
-
-
-# protect this with manager permissions
-class ManagerView(APIView):
-    permission_classes = [IsAuthenticated]
-    authentication_classes = [TokenAuthentication, SessionAuthentication]
-
-    def get(self, request):
-        user = request.user
-        stores = user.managed_stores.all()
-        stores = stores.union(user.owned_stores.all())
-        serializer = StoreSerializer(stores, many=True)
-        return Response(serializer.data)
-
-
-# protect this with owner permissions
-class OwnerView(APIView):
-    permission_classes = [IsAuthenticated]
-    authentication_classes = [SessionAuthentication]
-    # authentication_classes = [TokenAuthentication, SessionAuthentication]
-
-    def get(self, request):
-        user = request.user
-        stores = user.owned_stores.all()
-        serializer = StoreSerializer(stores, many=True)
-        return Response(serializer.data)
 
 
 # Another approach would be to use a mixin class.
 def get_user_stores(user):
-    # print("User:", user)
-    queryset = Store.objects.filter(
-        Q(manager_ids__in=[user]) | Q(owner_id=user)
-    ).distinct()
-    # print("Queryset count:", queryset.count())
-    return queryset
+    if user.is_superuser:
+        return Store.objects.all()
+    return Store.objects.filter(Q(manager_ids__in=[user]) | Q(owner_id=user)).distinct()
 
 
-class StoreDaysListView(APIView):
-    authentication_classes = [TokenAuthentication, SessionAuthentication]
-    permission_classes = [IsAuthenticated]
-
-    # print("StoreDaysListView loaded")
-
-    def __init__(self, *args, **kwargs):
-        # print("StoreDaysListView initialized")
-        super().__init__(*args, **kwargs)
-
-    def get(self, request):
-        # print("List view GET called")
-        return Response({"message": "This is the list view"}, status=status.HTTP_200_OK)
-
-
-class StoreDaysDetailView(APIView):
-    authentication_classes = [TokenAuthentication, SessionAuthentication]
-    permission_classes = [IsAuthenticated]
-
-    # print("StoreDaysDetailView loaded")
-
-    def __init__(self, *args, **kwargs):
-        # print("StoreDaysDetailView initialized")
-        super().__init__(*args, **kwargs)
-
-    def get(self, request, pk):
-        # print("Detail view GET called")
-        return Response(
-            {"message": "This is the detail view"}, status=status.HTTP_200_OK
-        )
+def is_list_view(request):
+    return "list" in request.path
