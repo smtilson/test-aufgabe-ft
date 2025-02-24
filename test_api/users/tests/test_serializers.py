@@ -7,6 +7,13 @@ from rest_framework.exceptions import ValidationError, AuthenticationFailed
 from ..api.serializers import CustomUserSerializer, SignUpSerializer, LoginSerializer
 
 
+class BaseTestCase(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        print(f"\nInitializing test class: {cls.__name__}")
+
+
 class CustomUserSerializerTest(TestCase):
     def setUp(self):
         self.data = {

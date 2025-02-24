@@ -10,7 +10,14 @@ from django.db import IntegrityError
 User = get_user_model()
 
 
-class CustomUserModelTest(TestCase):
+class BaseTestCase(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        print(f"\nInitializing test class: {cls.__name__}")
+
+
+class CustomUserModelTest(BaseTestCase):
     def setUp(self):
         self.user_data = {
             "email": "test@example.com",

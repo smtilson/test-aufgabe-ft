@@ -53,5 +53,4 @@ urlpatterns = [
     path("api-token-auth/", obtain_auth_token),
     path("admin/", admin.site.urls),
     path("api-auth/", include("rest_framework.urls", namespace="rest_framework")),
-    path("api/", include("api.api.urls")),
 ]

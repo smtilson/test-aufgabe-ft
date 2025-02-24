@@ -40,6 +40,11 @@ User = get_user_model()
 
 # Base test case setup
 class BaseTestCase(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        print(f"\nInitializing test class: {cls.__name__}")
+
     def setUp(self):
         self.owner = User.objects.create_user(**OWNER_DATA)
         self.manager = User.objects.create_user(**MANAGER_DATA)

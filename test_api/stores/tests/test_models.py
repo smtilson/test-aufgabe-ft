@@ -33,7 +33,14 @@ STORE_DATA = {
 User = get_user_model()
 
 
-class StoreModelTest(TestCase):
+class BaseTestCase(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        print(f"\nInitializing test class: {cls.__name__}")
+
+
+class StoreModelTest(BaseTestCase):
     def setUp(self):
         self.owner = User.objects.create_user(**OWNER_DATA)
         self.manager = User.objects.create_user(**MANAGER_DATA)

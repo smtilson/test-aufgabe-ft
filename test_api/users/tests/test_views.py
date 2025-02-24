@@ -32,7 +32,14 @@ BASE_DATA = {
 }
 
 
-class CustomUserViewSetTestCase(APITestCase):
+class BaseTestCase(APITestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        print(f"\nInitializing test class: {cls.__name__}")
+
+
+class CustomUserViewSetTestCase(BaseTestCase):
     def setUp(self):
         self.user = User.objects.create_user(**BASE_DATA)
         self.token, _ = Token.objects.get_or_create(user=self.user)
@@ -108,7 +115,7 @@ class CustomUserViewSetTestCase(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
 
-class SignupViewTests(APITestCase):
+class SignupViewTests(BaseTestCase):
     def setUp(self):
         self.url = reverse("signup")
         self.client.credentials(HTTP_ACCEPT="application/json")
@@ -203,7 +210,7 @@ class SignupViewTests(APITestCase):
             self.assertIn("enter a valid email", str(response.data).lower())
 
 
-class LoginViewTests(APITestCase):
+class LoginViewTests(BaseTestCase):
     def setUp(self):
         self.user = User.objects.create_user(**BASE_DATA)
         self.url = reverse("login")

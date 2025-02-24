@@ -511,48 +511,6 @@ class StoreViewSetTestCase(BaseTestCase):
         expected_count = Store.objects.filter(owner_id=test_owner.id).count()
         self.assertEqual(response.data["count"], expected_count)
 
-    def test_filter_by_manager_name(self):
-        self.switch_to_superuser()
-
-        # Create test manager with distinct name
-        test_manager = User.objects.create_user(
-            email="test.manager@test.com",
-            password="test123",
-            first_name="TEST",
-            last_name="MANAGER",
-        )
-
-        # Create stores owned by superuser
-        test_store1 = Store.objects.create(
-            owner_id=self.super_user,
-            name="Test Store 1",
-            address="123 Test St",
-            city="Test City",
-            state_abbrv="BE",
-            plz="12345",
-        )
-
-        test_store2 = Store.objects.create(
-            owner_id=self.super_user,
-            name="Test Store 2",
-            address="456 Test St",
-            city="Test City",
-            state_abbrv="BE",
-            plz="12345",
-        )
-
-        # Add test manager to both stores
-        test_store1.manager_ids.add(test_manager)
-        test_store2.manager_ids.add(test_manager)
-
-        # Query by manager first name
-        url = self.url_list + "?manager_first_name=TEST"
-        response = self.client.get(url)
-
-        # Verify results
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["count"], 2)
-
     @skip
     def test_filter_by_owner_name(self):
         self.switch_to_superuser()

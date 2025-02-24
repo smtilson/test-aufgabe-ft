@@ -3,7 +3,50 @@ from ..models import Store, DAYS_OF_WEEK
 from users.models import CustomUser
 
 
-class StoreSerializer(serializers.ModelSerializer):
+class BaseCheckMixin:
+    def check_unknown_fields(self, data):
+        # Get the known fields from the serializer
+        known_fields = set(self.fields.keys())
+        # Get the incoming fields from the data
+        incoming_fields = set(data.keys())
+
+        # Find any unknown fields
+        unknown_fields = incoming_fields - known_fields
+        if unknown_fields:
+            raise serializers.ValidationError(
+                {field: "This field is not recognized." for field in unknown_fields}
+            )
+
+    def check_required_fields(self, data):
+        if not self.is_creation():
+            return
+        required_fields = ["name", "owner_id", "address", "city", "state_abbrv"]
+        errors = {}
+        for field in required_fields:
+            if field not in data:
+                errors[field] = f"The field {field} is required for store creation."
+
+        if errors:
+            raise serializers.ValidationError(errors)
+
+    def check_open_closing_times(self, data):
+        opening_time = data.get("opening_time")
+        closing_time = data.get("closing_time")
+        if opening_time and closing_time and opening_time >= closing_time:
+            raise serializers.ValidationError(
+                {"closing_time": "Closing time must be later than opening time"}
+            )
+
+    def check_empty_update(self, data):
+        if self.context["request"].method == "PATCH":
+            for field_name, value in data.items():
+                if isinstance(value, str) and not value.strip():
+                    raise serializers.ValidationError(
+                        {field_name: "You cannot update a field to be empty"}
+                    )
+
+
+class StoreSerializer(serializers.ModelSerializer, BaseCheckMixin):
     days_of_operation = serializers.SerializerMethodField()
     owner = serializers.SerializerMethodField()
     owner_id = serializers.PrimaryKeyRelatedField(
@@ -74,47 +117,6 @@ class StoreSerializer(serializers.ModelSerializer):
     def is_creation(self):
         return self.context.get("request") and self.context["request"].method == "POST"
 
-    def check_unknown_fields(self, data):
-        # Get the known fields from the serializer
-        known_fields = set(self.fields.keys())
-        # Get the incoming fields from the data
-        incoming_fields = set(data.keys())
-
-        # Find any unknown fields
-        unknown_fields = incoming_fields - known_fields
-        if unknown_fields:
-            raise serializers.ValidationError(
-                {field: "This field is not recognized." for field in unknown_fields}
-            )
-
-    def check_required_fields(self, data):
-        if not self.is_creation():
-            return
-        required_fields = ["name", "owner_id", "address", "city", "state_abbrv"]
-        errors = {}
-        for field in required_fields:
-            if field not in data:
-                errors[field] = f"The field {field} is required for store creation."
-
-        if errors:
-            raise serializers.ValidationError(errors)
-
-    def check_open_closing_times(self, data):
-        opening_time = data.get("opening_time")
-        closing_time = data.get("closing_time")
-        if opening_time and closing_time and opening_time >= closing_time:
-            raise serializers.ValidationError(
-                {"closing_time": "Closing time must be later than opening time"}
-            )
-
-    def check_empty_update(self, data):
-        if self.context["request"].method == "PATCH":
-            for field_name, value in data.items():
-                if isinstance(value, str) and not value.strip():
-                    raise serializers.ValidationError(
-                        {field_name: "You cannot update a field to be empty"}
-                    )
-
     def validate_state_abbrv(self, value):
         if value not in Store.STATES:
             raise serializers.ValidationError(
@@ -123,7 +125,7 @@ class StoreSerializer(serializers.ModelSerializer):
         return value
 
     def validate_name(self, value):
-        # something is catching this error before I get to here.
+        # I think this is where the parser is interacting with things
         if not value.strip():
             raise serializers.ValidationError("Name cannot be blank.")
         return value
@@ -195,12 +197,11 @@ class DaysSerializer(serializers.ModelSerializer):
     def get_days_of_operation(self, obj):
         return obj.days_open
 
-    def to_internal_value(self, data):
+    def check_unknown_fields(self, data):
         # Get the known fields from the serializer
         known_fields = set(self.fields.keys())
         # Get the incoming fields from the data
         incoming_fields = set(data.keys())
-
         # Find any unknown fields
         unknown_fields = incoming_fields - known_fields
         if unknown_fields:
@@ -208,10 +209,12 @@ class DaysSerializer(serializers.ModelSerializer):
                 {field: "This field is not recognized." for field in unknown_fields}
             )
 
+    def to_internal_value(self, data):
+        self.check_unknown_fields(data)
         return super().to_internal_value(data)
 
 
-class HoursSerializer(serializers.ModelSerializer):
+class HoursSerializer(serializers.ModelSerializer, BaseCheckMixin):
     id = serializers.IntegerField(read_only=True, required=False)
     name = serializers.CharField(read_only=True, required=False)
     owner = serializers.SerializerMethodField()
@@ -253,22 +256,11 @@ class HoursSerializer(serializers.ModelSerializer):
         return data
 
     def to_internal_value(self, data):
-        # Get the known fields from the serializer
-        known_fields = set(self.fields.keys())
-        # Get the incoming fields from the data
-        incoming_fields = set(data.keys())
-
-        # Find any unknown fields
-        unknown_fields = incoming_fields - known_fields
-        if unknown_fields:
-            raise serializers.ValidationError(
-                {field: "This field is not recognized." for field in unknown_fields}
-            )
-
+        self.check_unknown_fields(data)
         return super().to_internal_value(data)
 
 
-class ManagersSerializer(serializers.ModelSerializer):
+class ManagersSerializer(serializers.ModelSerializer, BaseCheckMixin):
     id = serializers.IntegerField(read_only=True, required=False)
     name = serializers.CharField(read_only=True, required=False)
     owner = serializers.SerializerMethodField()
@@ -310,16 +302,5 @@ class ManagersSerializer(serializers.ModelSerializer):
         return instance
 
     def to_internal_value(self, data):
-        # Get the known fields from the serializer
-        known_fields = set(self.fields.keys())
-        # Get the incoming fields from the data
-        incoming_fields = set(data.keys())
-
-        # Find any unknown fields
-        unknown_fields = incoming_fields - known_fields
-        if unknown_fields:
-            raise serializers.ValidationError(
-                {field: "This field is not recognized." for field in unknown_fields}
-            )
-
+        self.check_unknown_fields(data)
         return super().to_internal_value(data)
