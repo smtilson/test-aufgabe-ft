@@ -1,3 +1,19 @@
+"""
+This module contains the API views for the stores application.
+
+The `StoreViewSet` class is a ModelViewSet that provides CRUD operations for the `Store` model. It uses the `StoreSerializer` to serialize the data, and the `StoreFilter` to filter the queryset. The `StoreViewsPagination` class is used to paginate the results.
+
+The `StoreDaysView` class is a GenericAPIView that provides GET, PUT, and PATCH operations for the days of operation of a store. It uses the `DaysSerializer` to serialize the data, and the `DaysFilter` to filter the queryset.
+
+The `StoreHoursView` class is a GenericAPIView that provides GET, PUT, and PATCH operations for the hours of operation of a store. It uses the `HoursSerializer` to serialize the data, and the `HoursFilter` to filter the queryset.
+
+The `StoreManagersView` class is a GenericAPIView that provides GET, PUT, and PATCH operations for the managers of a store. It uses the `ManagersSerializer` to serialize the data, and the `ManagersFilter` to filter the queryset.
+
+The `get_user_stores` function is a helper function that returns the stores that the user has access to, based on their role (superuser or manager).
+
+The `is_list_view` function is a helper function that checks if the current request is a list view.
+"""
+
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
@@ -28,13 +44,11 @@ class StoreViewsPagination(PageNumberPagination):
     max_page_size = 100
 
 
-# protect this with superuser permissions
 class StoreViewSet(ModelViewSet):
     serializer_class = StoreSerializer
     permission_classes = [IsAuthenticated]
     authentication_classes = [TokenAuthentication]
     pagination_class = StoreViewsPagination
-    # filter_backends = [OrderingFilter]
     filterset_class = StoreFilter
     http_method_names = ["get", "post", "put", "patch", "delete"]
 
@@ -52,9 +66,6 @@ class StoreViewSet(ModelViewSet):
         msg = "Create a store by filling the relevant fields."
         response.data["message"] = msg
         return response
-
-
-# this should be protected by manager and owner permissions
 
 
 class StoreDaysView(List, Retrieve, Update, GenericAPIView):

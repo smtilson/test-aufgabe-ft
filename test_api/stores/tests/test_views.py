@@ -617,9 +617,9 @@ class StoreViewSetTestCase(BaseTestCase):
     def test_filter_invalid_store_name(self):
         self.switch_to_superuser()
         invalid_names = [
-            ("", "empty values not allowed"),  # this behavior should match
-            (" ", "at least one letter"),  # this behavior should match
-            # issue with parser coercing things into strings
+            ("", "empty values not allowed"),
+            (" ", "at least one letter"),
+            # Issue with parser coercing things into strings
             # (["Store Name"], "not a valid string"),
             # ({"name": "Store"}, "not a valid string"),
         ]
@@ -633,8 +633,8 @@ class StoreViewSetTestCase(BaseTestCase):
     def test_filter_invalid_address(self):
         self.switch_to_superuser()
         invalid_addresses = [
-            ("", "empty values not allowed"),  # this behavior should match
-            (" ", "not be blank"),  # this behavior should match
+            ("", "empty values not allowed"),
+            (" ", "not be blank"),
             # issue with parser coercing things into strings
             # (["123 Main St"], "not a valid string"),
             # ({"street": "123 Main"}, "not a valid string"),

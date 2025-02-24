@@ -125,7 +125,6 @@ class StoreModelTest(BaseTestCase):
         self.store.opening_time = time(8, 30)  # TimeField
         self.store.save()
 
-        # Fetch fresh instance from database
         updated_store = Store.objects.get(id=self.store.id)
 
         # Verify updates by field type

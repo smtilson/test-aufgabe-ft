@@ -1,3 +1,13 @@
+"""
+Provides API views for managing custom user accounts and authentication.
+
+The `CustomUserViewSet` class provides a set of API endpoints for managing custom user accounts. It uses the `CustomUserSerializer` to serialize and deserialize user data, and the `UserFilter` to filter the queryset.
+
+The `SignupView` class provides an API endpoint for creating new user accounts. It uses the `SignUpSerializer` to validate and create new user instances, and returns an authentication token in the response.
+
+The `LoginView` class provides an API endpoint for authenticating users and obtaining an authentication token. It uses the `LoginSerializer` to validate the user's email and password, and returns the authentication token if the credentials are valid.
+"""
+
 from ..models import CustomUser
 from .serializers import CustomUserSerializer, SignUpSerializer, LoginSerializer
 from .filters import UserFilter
@@ -27,19 +37,17 @@ class SignupView(CreateAPIView):
     serializer_class = SignUpSerializer
     permission_classes = [AllowAny]
 
-    # remove after tests are written
     def perform_create(self, serializer):
         user = serializer.save()
         token, _ = Token.objects.get_or_create(user=user)
         return token.key
 
-    # maybe remove after tests are written
     def create(self, request, *args, **kwargs):
         """Override create method to include the token in the response."""
-        # Perform the object creation (user + token)
+        # Create user and get token
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        # Create user and get token
+
         token = self.perform_create(serializer)
 
         # Get user_data and add token
@@ -67,8 +75,6 @@ class LoginView(APIView):
             password = serializer.validated_data.get("password")
             user = authenticate(email=email, password=password)
             if user:
-                # is there a meaningful difference between returning
-                # the token and just the token key?
                 return Response({"token": user.auth_token.key})
             return Response(
                 {"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED
@@ -81,6 +87,3 @@ class LoginView(APIView):
             "Send a POST request with email and password to login and receive a token."
         )
         return Response({"message": msg})
-
-
-# should there be a view for a owner to create a employee?

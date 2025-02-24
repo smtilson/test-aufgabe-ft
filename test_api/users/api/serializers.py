@@ -1,3 +1,13 @@
+"""
+Serializers for the CustomUser model and authentication-related functionality.
+
+The `CustomUserSerializer` is used to serialize and deserialize the `CustomUser` model, including fields like `first_name`, `last_name`, `email`, `password`, and various flags like `is_manager`, `is_owner`, and `token`.
+
+The `SignUpSerializer` is a specialized serializer for creating new `CustomUser` instances during the sign-up process, validating the password using the Django password validator.
+
+The `LoginSerializer` is used to validate the email and password during the login process, and returns the authenticated user.
+"""
+
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth import authenticate
 from rest_framework import serializers
@@ -9,8 +19,6 @@ class CustomUserSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
     is_manager = serializers.SerializerMethodField()
     is_owner = serializers.SerializerMethodField()
-    # add owned stores and managed stores?
-    # do I want to add this to the serializer?
     token = serializers.SerializerMethodField()
 
     class Meta:
@@ -63,7 +71,6 @@ class SignUpSerializer(serializers.ModelSerializer):
         write_only=True, required=True, validators=[validate_password]
     )
 
-    # This needs to validate that the password is sufficiently strong.
     class Meta:
         model = CustomUser
         fields = [

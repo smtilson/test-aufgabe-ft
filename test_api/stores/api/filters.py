@@ -153,10 +153,6 @@ class ManagersFilter(FilterSet, BaseFilterValidationMixin):
         lookup_expr="exact",
         validators=[MinValueValidator(1, message="Invalid manager ID")],
     )
-    #    manager_ids_in = NumberFilter(
-    #       lookup_expr="in",
-    #      validators=[MinValueValidator(1, message="Invalid manager ID")],
-    # )
     manager_first_name = CharFilter(
         field_name="manager_ids__first_name", lookup_expr="icontains"
     )
@@ -189,15 +185,9 @@ class ManagersFilter(FilterSet, BaseFilterValidationMixin):
         allowed_params = self._add_default_params(manager_fields)
         self._base_validation(params, allowed_params)
         self._validate_names(params)
-        # for field in set(params.keys()):
-        #   values = params.getlist(field)
-        #  # Validate names only for name-related fields
-        # if "name" in field:
-        #    self._validate_name(values[0])
 
 
 class StoreFilter(FilterSet, BaseFilterValidationMixin):
-    # Define all store-specific filters
     name = CharFilter(lookup_expr="icontains")
     city = CharFilter(lookup_expr="icontains")
     address = CharFilter(lookup_expr="icontains")
@@ -211,10 +201,6 @@ class StoreFilter(FilterSet, BaseFilterValidationMixin):
         lookup_expr="exact",
         validators=[MinValueValidator(1, message="Invalid owner ID")],
     )
-    # owner_id_in = NumberFilter(
-    #   lookup_expr="in",
-    #  validators=[MinValueValidator(1, message="Invalid owner ID")],
-    # )
     owner_first_name = CharFilter(
         field_name="owner_id__first_name", lookup_expr="icontains"
     )
@@ -227,10 +213,6 @@ class StoreFilter(FilterSet, BaseFilterValidationMixin):
         lookup_expr="exact",
         validators=[MinValueValidator(1, message="Invalid manager ID")],
     )
-    #   manager_ids_in = NumberFilter(
-    #      lookup_expr="in",
-    #     validators=[MinValueValidator(1, message="Invalid manager ID")],
-    # )
     manager_first_name = CharFilter(
         field_name="manager_ids__first_name", lookup_expr="icontains"
     )

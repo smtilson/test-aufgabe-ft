@@ -14,7 +14,7 @@ class BaseTestCase(TestCase):
         print(f"\nInitializing test class: {cls.__name__}")
 
 
-class CustomUserSerializerTest(TestCase):
+class CustomUserSerializerTest(BaseTestCase):
     def setUp(self):
         self.data = {
             "email": "test@example.com",
@@ -34,11 +34,9 @@ class CustomUserSerializerTest(TestCase):
 
     def test_deserialization(self):
         serializer = CustomUserSerializer(data=self.data)
-        # check that the data is valid
         self.assertTrue(serializer.is_valid(), serializer.errors)
         user = serializer.save()
 
-        # check user data
         self.assertEqual(user.email, self.data["email"])
         self.assertEqual(user.first_name, self.data["first_name"])
         self.assertEqual(user.last_name, self.data["last_name"])
@@ -62,7 +60,6 @@ class CustomUserSerializerTest(TestCase):
         self.assertTrue(serializer.is_valid(), serializer.errors)
         user = serializer.save()
 
-        # check that the fields did not change
         self.assertFalse(user.is_superuser)
         self.assertFalse(user.is_staff)
         self.assertTrue(user.is_active)
@@ -83,7 +80,7 @@ class CustomUserSerializerTest(TestCase):
 
         user = serializer.save()
         self.assertEqual(user.email, self.data["email"])
-        #  check that the password is hashed
+
         self.assertTrue(user.check_password(self.data["password"]))
         self.assertNotEqual(user.password, self.data["password"])
         self.assertFalse(user.is_superuser)
@@ -91,7 +88,7 @@ class CustomUserSerializerTest(TestCase):
         self.assertTrue(user.is_active)
 
 
-class SignUpSerializerTest(TestCase):
+class SignUpSerializerTest(BaseTestCase):
     def setUp(self):
         self.data = {
             "email": "test@example.com",
@@ -143,7 +140,7 @@ class SignUpSerializerTest(TestCase):
         self.assertIn("email", serializer.errors)
 
 
-class LoginSerializerTest(TestCase):
+class LoginSerializerTest(BaseTestCase):
     def setUp(self):
         self.data = self.data = {
             "email": "test@example.com",
