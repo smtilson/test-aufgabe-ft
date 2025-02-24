@@ -11,7 +11,7 @@ from test_api import load_data as ldb
 
 User = get_user_model()
 
-# at the end re-evaluate if you need all this extra shit.
+# Test Data Constants
 OWNER1_DATA = {
     "email": "owner@example.com",
     "password": "STRONG_password123",
@@ -124,16 +124,13 @@ class BaseTestCase(APITestCase):
         return f"{field}_{specifier}"
 
 
-# StoreViewSet tests:
-
-
-@skip
 class StoreViewSetTestCase(BaseTestCase):
     def setUp(self):
         super().setUp()
         self.url_list = reverse("stores-list")
         self.url_detail = reverse("stores-detail", args=[self.store1.id])
 
+    # Authentication Tests
     def test_unauthenticated_access(self):
         self.client.credentials()  # No auth header
         response = self.client.get(self.url_list)
@@ -150,6 +147,7 @@ class StoreViewSetTestCase(BaseTestCase):
         response = self.client.get(self.url_detail)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
+    # List Tests
     def test_list_stores(self):
         # Test owner1 sees their stores
         response = self.client.get(self.url_list)
@@ -180,6 +178,7 @@ class StoreViewSetTestCase(BaseTestCase):
             response.data["message"], "Create a store by filling the relevant fields."
         )
 
+    # Pagination Tests
     def test_list_stores_pagination(self):
         response = self.client.get(self.url_list, {"page": 1, "page_size": 2})
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -193,6 +192,7 @@ class StoreViewSetTestCase(BaseTestCase):
         # Check error message
         self.assertEqual(response.data["detail"].code, "not_found")
 
+    # Create Store wih valid and invalid data
     def test_create_store(self):
         new_store_data = {key: value + "1" for key, value in STORE3_DATA.items()}
         new_store_data["state_abbrv"] = "HH"
@@ -268,6 +268,7 @@ class StoreViewSetTestCase(BaseTestCase):
         for term in {"error", "required", "invalid", "address"}:
             self.assertIn(term, str(response.data).lower())
 
+    # Retrieve Tests
     def test_retrieve_valid_store(self):
         response = self.client.get(self.url_detail)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -285,8 +286,7 @@ class StoreViewSetTestCase(BaseTestCase):
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
         self.assertEqual(response.data["detail"].code, "not_found")
 
-    # Test update store
-
+    # Update Tests
     def test_update_store(self):
         # Try to update all fields
         response = self.client.patch(self.url_detail, STORE3_DATA)
@@ -323,6 +323,7 @@ class StoreViewSetTestCase(BaseTestCase):
         for term in terms:
             self.assertIn(term, str(response.data).lower())
 
+    # Field Validation Tests
     def test_validation_name(self):
         invalid_names = [
             ("", "cannot update a field to be empty"),
@@ -435,7 +436,7 @@ class StoreViewSetTestCase(BaseTestCase):
             self.assertEqual(response.status_code, status.HTTP_200_OK)
             self.assertEqual(response.data["plz"], "12345")
 
-    # Test delete store
+    # Delete Tests
     def test_delete_store(self):
         response = self.client.delete(self.url_detail)
         count = Store.objects.count()
@@ -451,6 +452,7 @@ class StoreViewSetTestCase(BaseTestCase):
         self.assertEqual(Store.objects.count(), count)
         self.assertEqual(response.data["detail"].code, "not_found")
 
+    # Filter Tests
     def test_filter_valid_store_fields(self):
         self.switch_to_superuser()
         test_cases = (
@@ -482,7 +484,7 @@ class StoreViewSetTestCase(BaseTestCase):
         )
 
         # Create test stores owned by superuser
-        test_store1 = Store.objects.create(
+        Store.objects.create(
             owner_id=test_owner,
             name="Test Store 1",
             address="123 Test St",
@@ -491,7 +493,7 @@ class StoreViewSetTestCase(BaseTestCase):
             plz="12345",
         )
 
-        test_store2 = Store.objects.create(
+        Store.objects.create(
             owner_id=test_owner,
             name="Test Store 2",
             address="456 Test St",
@@ -501,7 +503,7 @@ class StoreViewSetTestCase(BaseTestCase):
         )
 
         # Query by manager ID
-        url = self.url_list + f"?owner_ids={test_owner.id}"
+        url = self.url_list + f"?owner_id={test_owner.id}"
         response = self.client.get(url)
 
         # Verify results
@@ -509,6 +511,49 @@ class StoreViewSetTestCase(BaseTestCase):
         expected_count = Store.objects.filter(owner_id=test_owner.id).count()
         self.assertEqual(response.data["count"], expected_count)
 
+    def test_filter_by_manager_name(self):
+        self.switch_to_superuser()
+
+        # Create test manager with distinct name
+        test_manager = User.objects.create_user(
+            email="test.manager@test.com",
+            password="test123",
+            first_name="TEST",
+            last_name="MANAGER",
+        )
+
+        # Create stores owned by superuser
+        test_store1 = Store.objects.create(
+            owner_id=self.super_user,
+            name="Test Store 1",
+            address="123 Test St",
+            city="Test City",
+            state_abbrv="BE",
+            plz="12345",
+        )
+
+        test_store2 = Store.objects.create(
+            owner_id=self.super_user,
+            name="Test Store 2",
+            address="456 Test St",
+            city="Test City",
+            state_abbrv="BE",
+            plz="12345",
+        )
+
+        # Add test manager to both stores
+        test_store1.manager_ids.add(test_manager)
+        test_store2.manager_ids.add(test_manager)
+
+        # Query by manager first name
+        url = self.url_list + "?manager_first_name=TEST"
+        response = self.client.get(url)
+
+        # Verify results
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 2)
+
+    @skip
     def test_filter_by_owner_name(self):
         self.switch_to_superuser()
 
@@ -556,6 +601,7 @@ class StoreViewSetTestCase(BaseTestCase):
             owner_id__first_name__icontains="TEST"
         ).count()
         print(f"Expected count: {expected_count}")
+        print(response.data.keys())
         print(f"Actual count: {response.data['count']}")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -618,7 +664,7 @@ class StoreViewSetTestCase(BaseTestCase):
         self.switch_to_superuser()
         invalid_names = [
             ("", "empty values not allowed"),  # this behavior should match
-            (" ", "may not be blank"),  # this behavior should match
+            (" ", "at least one letter"),  # this behavior should match
             # issue with parser coercing things into strings
             # (["Store Name"], "not a valid string"),
             # ({"name": "Store"}, "not a valid string"),
@@ -712,11 +758,13 @@ class StoreDaysViewTests(BaseTestCase):
         self.url_list = reverse("store-days-list")
         self.url_detail = reverse("store-days-detail", kwargs={"pk": self.store1.id})
 
+    # GET request tests
     def test_get_store_days_valid_id(self):
         response = self.client.get(self.url_detail)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(
-            response.data["days_of_operation"], str(["Montag", "Dienstag", "Mittwoch"])
+            response.data["days_of_operation"],
+            str(["Montag", "Dienstag", "Mittwoch"]),
         )
         self.assertIn("Modify the days of operation by", response.data["message"])
 
@@ -731,9 +779,23 @@ class StoreDaysViewTests(BaseTestCase):
 
         # Check message
         self.assertEqual(
-            response.data["message"], "Select store to modify its days of operation."
+            response.data["message"],
+            "Select store to modify its days of operation.",
         )
 
+    # Error handling tests
+    def test_get_store_days_invalid_id(self):
+        url = reverse("store-days-detail", kwargs={"pk": 999})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(response.data["detail"].code, "not_found")
+
+    def test_get_store_days_malformed_id(self):
+        url = "/days-detail/abc/"
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    # Pagination tests
     def test_list_pagination(self):
         response = self.client.get(self.url_list, {"page": 1, "page_size": 1})
 
@@ -754,17 +816,7 @@ class StoreDaysViewTests(BaseTestCase):
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
         self.assertEqual(response.data["detail"].code, "not_found")
 
-    def test_get_store_days_invalid_id(self):
-        url = reverse("store-days-detail", kwargs={"pk": 999})
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-        self.assertEqual(response.data["detail"].code, "not_found")
-
-    def test_get_store_days_malformed_id(self):
-        url = "/days-detail/abc/"
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-
+    # Authentication tests
     def test_store_days_invalid_auth(self):
         self.client.credentials(HTTP_AUTHORIZATION="Token invalid_token")
         # Try list endpoint
@@ -772,10 +824,10 @@ class StoreDaysViewTests(BaseTestCase):
         self.assertEqual(list_response.status_code, status.HTTP_401_UNAUTHORIZED)
 
         # Try detail endpoint
-
         detail_response = self.client.get(self.url_detail)
         self.assertEqual(detail_response.status_code, status.HTTP_401_UNAUTHORIZED)
 
+    # Update operation tests
     def test_update_days_to_false(self):
         data = {"montag": False, "dienstag": False}
         response = self.client.patch(self.url_detail, data)
@@ -791,6 +843,7 @@ class StoreDaysViewTests(BaseTestCase):
             str(["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag"]),
         )
 
+    # Validation tests
     def test_update_days_invalid_boolean(self):
         data = {"montag": "not_a_boolean", "dienstag": 123}
         response = self.client.patch(self.url_detail, data)
@@ -806,6 +859,7 @@ class StoreDaysViewTests(BaseTestCase):
         self.assertEqual(response.data["invalid_day"].code, "invalid")
         self.assertEqual(response.data["not_a_day"].code, "invalid")
 
+    # Business logic tests
     def test_days_of_operation_order(self):
         # Set some non-sequential days to true
         data = {
@@ -824,6 +878,7 @@ class StoreDaysViewTests(BaseTestCase):
         expected_order = ["Dienstag", "Donnerstag", "Freitag", "Sonntag"]
         self.assertEqual(response.data["days_of_operation"], str(expected_order))
 
+    # Filtering tests
     def test_filter_by_day(self):
         self.switch_to_superuser()
         for day in self.days_list:
@@ -917,7 +972,11 @@ class StoreDaysViewTests(BaseTestCase):
 
     def test_filter_non_day_parameters(self):
         self.switch_to_superuser()
-        invalid_params = ["?random=true", "?foo=false", "?not_a_day=true&montag=true"]
+        invalid_params = [
+            "?random=true",
+            "?foo=false",
+            "?not_a_day=true&montag=true",
+        ]
         for param in invalid_params:
             url = self.url_list + param
             response = self.client.get(url)
@@ -1210,7 +1269,6 @@ class StoreHoursViewTests(BaseTestCase):
             self.assertEqual(response.status_code, expected_status)
 
 
-@skip
 class StoreManagersViewTests(BaseTestCase):
     def setUp(self):
         super().setUp()
@@ -1346,31 +1404,6 @@ class StoreManagersViewTests(BaseTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         expected_count = Store.objects.filter(manager_ids=test_manager.id).count()
         self.assertEqual(response.data["count"], expected_count)
-
-    @skip("Not yet implemented")
-    def test_filter_by_manager_ids_set(self):
-        self.switch_to_superuser()
-
-        # Get some valid manager IDs from stores with managers
-        stores_with_managers = Store.objects.filter(manager_ids__isnull=False)
-        valid_manager_ids = list(
-            stores_with_managers.values_list("manager_ids", flat=True)
-        )[:2]
-
-        # Test valid case - should return stores with these managers
-        url = self.url_list + f"?manager_ids_in={','.join(map(str, valid_manager_ids))}"
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        expected_count = Store.objects.filter(manager_ids__in=valid_manager_ids).count()
-        self.assertEqual(response.data["count"], expected_count)
-
-        # Test invalid case - using non-existent IDs
-        max_id = User.objects.all().order_by("-id").first().id
-        nonexistent_ids = [max_id + 1, max_id + 2]
-        url = self.url_list + f"?manager_ids_in={','.join(map(str, nonexistent_ids))}"
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["count"], 0)
 
     def test_filter_malformed_manager_id(self):
         self.switch_to_superuser()

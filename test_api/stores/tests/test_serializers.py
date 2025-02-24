@@ -12,6 +12,7 @@ from stores.api.serializers import (
     ManagersSerializer,
 )
 
+# Test data constants
 OWNER_DATA = {
     "email": "owner@example.com",
     "password": "STRONG_password123",
@@ -37,6 +38,7 @@ STORE_DATA = {
 User = get_user_model()
 
 
+# Base test case setup
 class BaseTestCase(TestCase):
     def setUp(self):
         self.owner = User.objects.create_user(**OWNER_DATA)
@@ -70,27 +72,85 @@ class BaseTestCase(TestCase):
         self.setup_context_requests()
 
     def setup_context_requests(self):
-        PATCH_request = Mock()
-        PATCH_request.method = "PATCH"
-        PATCH_request.user = self.owner
-        self.context_PATCH = {"request": PATCH_request}
-        POST_request = Mock()
-        POST_request.method = "POST"
-        POST_request.user = self.owner
-        self.context_POST = {"request": POST_request}
-        PUT_request = Mock()
-        PUT_request.method = "PUT"
-        PUT_request.user = self.owner
-        self.context_PUT = {"request": PUT_request}
-        DELETE_request = Mock()
-        self.context_DELETE = {"request": DELETE_request}
+        for method in {"PATCH", "POST", "PUT", "DELETE"}:
+            method_request = Mock()
+            method_request.method = method
+            method_request.user = self.owner
+            setattr(self, f"context_{method}", {"request": method_request})
 
 
+# Store Serializer Tests
 class StoreSerializerTest(BaseTestCase):
     def setUp(self):
         super().setUp()
         self.serializer = StoreSerializer(instance=self.store)
 
+    # Store Creation Tests
+    def test_create_store_via_serializer(self):
+        new_store_data = {
+            "name": "New Store",
+            "owner_id": self.owner.id,
+            "address": "456 Side St",
+            "city": "New City",
+            "state_abbrv": "HH",
+            "plz": "54321",
+            "opening_time": "08:00:00",
+            "closing_time": "18:00:00",
+            "manager_ids": [self.manager.id],
+        }
+        serializer = StoreSerializer(data=new_store_data, context=self.context_POST)
+        self.assertTrue(serializer.is_valid())
+        store = serializer.save()
+
+        for key in new_store_data:
+            if key in {"owner_id", "manager_ids", "opening_time", "closing_time"}:
+                continue
+            value = getattr(store, key)
+            self.assertEqual(value, new_store_data[key])
+        self.assertEqual(store.owner_id, self.owner)
+        self.assertIn(self.manager, store.manager_ids.all())
+        self.assertEqual(store.opening_time, time(8, 0))
+        self.assertEqual(store.closing_time, time(18, 0))
+
+    def test_initial_days(self):
+        for day in self.initial_days:
+            self.assertEqual(getattr(self.store, day), self.initial_days[day])
+
+    def test_days_of_operation_field(self):
+        serializer = StoreSerializer(instance=self.store)
+        self.assertEqual(
+            serializer.data["days_of_operation"],
+            str(["Montag", "Dienstag", "Mittwoch"]),
+        )
+
+    def test_owner_field(self):
+        self.assertEqual(self.serializer.data["owner"], str(self.owner))
+
+    def test_managers_field(self):
+        self.assertEqual(self.serializer.data["managers"], [str(self.manager)])
+
+    # Deserialization Tests
+    def test_deserialize_store(self):
+        serialized_data = self.serializer.data
+        deserializer = StoreSerializer(data=serialized_data, context=self.context_POST)
+
+        self.assertTrue(deserializer.is_valid())
+        deserialized_data = deserializer.validated_data
+        avoid = {"manager_ids", "closing_time", "opening_time"}
+        for key in deserialized_data.keys():
+            if key in avoid:
+                continue
+            self.assertEqual(deserialized_data[key], getattr(self.store, key))
+
+        self.assertEqual(
+            deserialized_data["manager_ids"], list(self.store.manager_ids.all())
+        )
+        opening_time = getattr(self.store, "opening_time")
+        self.assertEqual(str(deserialized_data["opening_time"]), opening_time)
+        closing_time = str(getattr(self.store, "closing_time"))
+        self.assertEqual(str(deserialized_data["closing_time"]), closing_time)
+
+    # Validation Tests
     def test_contains_expected_fields(self):
         data = self.serializer.data
         expected_fields = {
@@ -119,7 +179,7 @@ class StoreSerializerTest(BaseTestCase):
         }
         self.assertEqual(set(data.keys()), expected_fields)
 
-    def test_validations_field_type(self):
+    def test_validation_field_types(self):
         invalid_data = {
             "name": {123},  # should be string
             "address": ["not", "a", "string"],  # should be string
@@ -138,52 +198,6 @@ class StoreSerializerTest(BaseTestCase):
         self.assertFalse(serializer.is_valid())
         for field in invalid_data.keys():
             self.assertIn(field, serializer.errors)
-
-    def test_create_store_via_serializer(self):
-        new_store_data = {
-            "name": "New Store",
-            "owner_id": self.owner.id,
-            "address": "456 Side St",
-            "city": "New City",
-            "state_abbrv": "HH",
-            "plz": "54321",
-            "opening_time": "08:00:00",
-            "closing_time": "18:00:00",
-            "manager_ids": [self.manager.id],
-        }
-        serializer = StoreSerializer(data=new_store_data, context=self.context_POST)
-        self.assertTrue(serializer.is_valid())
-        store = serializer.save()
-
-        for key in new_store_data:
-            if key in {"owner_id", "manager_ids", "opening_time", "closing_time"}:
-                continue
-            value = getattr(store, key)
-            self.assertEqual(value, new_store_data[key])
-        self.assertEqual(store.owner_id, self.owner)
-        self.assertIn(self.manager, store.manager_ids.all())
-        self.assertEqual(store.opening_time, time(8, 0))
-        self.assertEqual(store.closing_time, time(18, 0))
-
-    def test_deserialize_store(self):
-        serialized_data = self.serializer.data
-        deserializer = StoreSerializer(data=serialized_data, context=self.context_POST)
-
-        self.assertTrue(deserializer.is_valid())
-        deserialized_data = deserializer.validated_data
-        avoid = {"manager_ids", "closing_time", "opening_time"}
-        for key in deserialized_data.keys():
-            if key in avoid:
-                continue
-            self.assertEqual(deserialized_data[key], getattr(self.store, key))
-
-        self.assertEqual(
-            deserialized_data["manager_ids"], list(self.store.manager_ids.all())
-        )
-        opening_time = getattr(self.store, "opening_time")
-        self.assertEqual(str(deserialized_data["opening_time"]), opening_time)
-        closing_time = str(getattr(self.store, "closing_time"))
-        self.assertEqual(str(deserialized_data["closing_time"]), closing_time)
 
     def test_validation_state(self):
         invalid_state_cases = [
@@ -358,10 +372,6 @@ class StoreSerializerTest(BaseTestCase):
             )
             self.assertTrue(serializer.is_valid())
 
-    def test_initial_days(self):
-        for day in self.initial_days:
-            self.assertEqual(getattr(self.store, day), self.initial_days[day])
-
     def test_optional_fields(self):
         required_data = {
             "name": "Test Store",
@@ -401,18 +411,7 @@ class StoreSerializerTest(BaseTestCase):
             )
             self.assertIn(field, str(serializer.errors[field]))
 
-    def test_days_of_operation_field(self):
-        serializer = StoreSerializer(instance=self.store)
-        self.assertEqual(
-            serializer.data["days_of_operation"],
-            str(["Montag", "Dienstag", "Mittwoch"]),
-        )
-
-    def test_owner_field(self):
-        self.assertEqual(self.serializer.data["owner"], str(self.owner))
-
-    def test_managers_field(self):
-        self.assertEqual(self.serializer.data["managers"], [str(self.manager)])
+    # Update and Delete Tests
 
     def test_add_new_manager(self):
         new_manager_data = {key: value + "1" for key, value in MANAGER_DATA.items()}

@@ -47,6 +47,13 @@ class BaseFilterValidationMixin:
         if not any(char.isalpha() for char in name):
             raise ValidationError("Name must contain at least one letter")
 
+    def _validate_names(self, params):
+        for field in set(params.keys()):
+            values = params.getlist(field)
+            # Validate names only for name-related fields
+            if "name" in field:
+                self._validate_name(values[0])
+
     # Originally from Days Filter
     def _validate_day_fields(self, params, day_fields):
         for field in day_fields:
@@ -181,11 +188,12 @@ class ManagersFilter(FilterSet, BaseFilterValidationMixin):
         manager_fields = set(self.filters.keys())
         allowed_params = self._add_default_params(manager_fields)
         self._base_validation(params, allowed_params)
-        for field in set(params.keys()):
-            values = params.getlist(field)
-            # Validate names only for name-related fields
-            if "name" in field:
-                self._validate_name(values[0])
+        self._validate_names(params)
+        # for field in set(params.keys()):
+        #   values = params.getlist(field)
+        #  # Validate names only for name-related fields
+        # if "name" in field:
+        #    self._validate_name(values[0])
 
 
 class StoreFilter(FilterSet, BaseFilterValidationMixin):
@@ -203,15 +211,15 @@ class StoreFilter(FilterSet, BaseFilterValidationMixin):
         lookup_expr="exact",
         validators=[MinValueValidator(1, message="Invalid owner ID")],
     )
-    # owner_ids_in = NumberFilter(
+    # owner_id_in = NumberFilter(
     #   lookup_expr="in",
     #  validators=[MinValueValidator(1, message="Invalid owner ID")],
     # )
     owner_first_name = CharFilter(
-        field_name="owner_ids__first_name", lookup_expr="icontains"
+        field_name="owner_id__first_name", lookup_expr="icontains"
     )
     owner_last_name = CharFilter(
-        field_name="owner_ids__last_name", lookup_expr="icontains"
+        field_name="owner_id__last_name", lookup_expr="icontains"
     )
 
     # From ManagersFilter
@@ -263,7 +271,33 @@ class StoreFilter(FilterSet, BaseFilterValidationMixin):
 
     class Meta:
         model = Store
-        fields = "__all__"
+
+        fields = [
+            "name",
+            "city",
+            "address",
+            "state_abbrv",
+            "plz",
+            "owner_id",
+            "owner_first_name",
+            "owner_last_name",
+            "manager_ids",
+            "manager_first_name",
+            "manager_last_name",
+            "opening_time",
+            "opening_time_lte",
+            "opening_time_gte",
+            "closing_time",
+            "closing_time_lte",
+            "closing_time_gte",
+            "montag",
+            "dienstag",
+            "mittwoch",
+            "donnerstag",
+            "freitag",
+            "samstag",
+            "sonntag",
+        ]
 
     def filter_queryset(self, queryset):
         params = self.request.query_params
@@ -275,13 +309,12 @@ class StoreFilter(FilterSet, BaseFilterValidationMixin):
                 self.validate_filters(params)
         return super().filter_queryset(queryset)
 
-    # maybe refactor most of this into a base class method
-
     def validate_filters(self, params):
         allowed_params = self.filters.keys()
         allowed_params = self._add_default_params(self.filters.keys())
 
         self._base_validation(params, allowed_params)
+        self._validate_names(params)
         serializer_params = {
             k: v for k, v in params.items() if k not in self._extra_allowed_params
         }
