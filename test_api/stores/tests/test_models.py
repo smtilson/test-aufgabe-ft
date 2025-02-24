@@ -61,23 +61,6 @@ class StoreModelTest(TestCase):
         self.store.save()
         self.assertEqual(self.store.days_open, str([day.capitalize() for day in days]))
 
-    # I don't think I need day_data property at all
-    def test_day_data_property(self):
-        self.store.dienstag = True
-        self.store.freitag = True
-        self.store.save()
-
-        expected_data = {
-            "montag": False,
-            "dienstag": True,
-            "mittwoch": False,
-            "donnerstag": False,
-            "freitag": True,
-            "samstag": False,
-            "sonntag": False,
-        }
-        self.assertEqual(self.store.day_data, expected_data)
-
     def test_invalid_state_abbreviation(self):
         with self.assertRaises(ValidationError) as e:
             invalid_store = Store(

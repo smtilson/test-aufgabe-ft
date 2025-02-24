@@ -72,10 +72,3 @@ class Store(models.Model):
     @property
     def days_open(self):
         return str([day.capitalize() for day in DAYS_OF_WEEK if getattr(self, day)])
-
-    # I think this
-    @property
-    def day_data(self):
-        return {day: getattr(self, day) for day in DAYS_OF_WEEK}
-
-    # transfer ownership method?

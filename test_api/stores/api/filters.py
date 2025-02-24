@@ -51,7 +51,6 @@ class BaseFilterValidationMixin:
     def _validate_day_fields(self, params, day_fields):
         for field in day_fields:
             values = params.getlist(field)
-            self._check_for_duplicates(field, values)
             self._validate_boolean_value(field, values)
 
     def _validate_boolean_value(self, field, values):
@@ -70,9 +69,9 @@ class BaseFilterValidationMixin:
             self._check_for_duplicate(field, values)
 
     def _base_validation(self, params, allowed_params):
+        self._check_for_duplicates(params)
         self._reject_all_empty(params)
         self._validate_parameter_names(params, allowed_params)
-        self._check_for_duplicates(params)
 
     @property
     def _extra_allowed_params(self):
@@ -103,6 +102,7 @@ class DaysFilter(FilterSet, BaseFilterValidationMixin):
         day_fields = set(self.filters.keys())
         allowed_params = self._add_default_params(day_fields)
         self._base_validation(params, allowed_params)
+        self._validate_day_fields(params, day_fields)
 
 
 class HoursFilter(FilterSet, BaseFilterValidationMixin):
@@ -146,10 +146,10 @@ class ManagersFilter(FilterSet, BaseFilterValidationMixin):
         lookup_expr="exact",
         validators=[MinValueValidator(1, message="Invalid manager ID")],
     )
-    manager_ids_in = NumberFilter(
-        lookup_expr="in",
-        validators=[MinValueValidator(1, message="Invalid manager ID")],
-    )
+    #    manager_ids_in = NumberFilter(
+    #       lookup_expr="in",
+    #      validators=[MinValueValidator(1, message="Invalid manager ID")],
+    # )
     manager_first_name = CharFilter(
         field_name="manager_ids__first_name", lookup_expr="icontains"
     )
@@ -198,14 +198,15 @@ class StoreFilter(FilterSet, BaseFilterValidationMixin):
     state_abbrv = ChoiceFilter(choices=state_choices, lookup_expr="icontains")
     plz = CharFilter(lookup_expr="exact")
 
-    owner_ids = NumberFilter(
+    # Copied from ManagersFilter pattern
+    owner_id = NumberFilter(
         lookup_expr="exact",
         validators=[MinValueValidator(1, message="Invalid owner ID")],
     )
-    owner_ids_in = NumberFilter(
-        lookup_expr="in",
-        validators=[MinValueValidator(1, message="Invalid owner ID")],
-    )
+    # owner_ids_in = NumberFilter(
+    #   lookup_expr="in",
+    #  validators=[MinValueValidator(1, message="Invalid owner ID")],
+    # )
     owner_first_name = CharFilter(
         field_name="owner_ids__first_name", lookup_expr="icontains"
     )
@@ -218,10 +219,10 @@ class StoreFilter(FilterSet, BaseFilterValidationMixin):
         lookup_expr="exact",
         validators=[MinValueValidator(1, message="Invalid manager ID")],
     )
-    manager_ids_in = NumberFilter(
-        lookup_expr="in",
-        validators=[MinValueValidator(1, message="Invalid manager ID")],
-    )
+    #   manager_ids_in = NumberFilter(
+    #      lookup_expr="in",
+    #     validators=[MinValueValidator(1, message="Invalid manager ID")],
+    # )
     manager_first_name = CharFilter(
         field_name="manager_ids__first_name", lookup_expr="icontains"
     )
@@ -246,16 +247,6 @@ class StoreFilter(FilterSet, BaseFilterValidationMixin):
     samstag = BooleanFilter()
     sonntag = BooleanFilter()
 
-    # From ManagersFilter
-    manager_ids = NumberFilter(lookup_expr="exact")
-    manager_ids_in = NumberFilter(field_name="manager_ids", lookup_expr="in")
-    manager_first_name = CharFilter(
-        field_name="manager_ids__first_name", lookup_expr="icontains"
-    )
-    manager_last_name = CharFilter(
-        field_name="manager_ids__last_name", lookup_expr="icontains"
-    )
-
     ordering = OrderingFilter(
         fields=(
             ("name", "name"),
@@ -263,6 +254,10 @@ class StoreFilter(FilterSet, BaseFilterValidationMixin):
             ("state_abbrv", "state"),
             ("opening_time", "opens"),
             ("closing_time", "closes"),
+            ("manager_ids__first_name", "manager_first_name"),
+            ("manager_ids__last_name", "manager_last_name"),
+            ("owner_id__first_name", "owner_first_name"),
+            ("owner_id__last_name", "owner_last_name"),
         )
     )
 

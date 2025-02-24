@@ -32,7 +32,7 @@ class StoreViewsPagination(PageNumberPagination):
 class StoreViewSet(ModelViewSet):
     serializer_class = StoreSerializer
     permission_classes = [IsAuthenticated]
-    authentication_classes = [TokenAuthentication, SessionAuthentication]
+    authentication_classes = [TokenAuthentication]
     pagination_class = StoreViewsPagination
     # filter_backends = [OrderingFilter]
     filterset_class = StoreFilter
@@ -63,7 +63,7 @@ class StoreDaysView(
     # print("StoreDaysView class loaded")
     serializer_class = DaysSerializer
     permission_classes = [IsAuthenticated]
-    authentication_classes = [TokenAuthentication, SessionAuthentication]
+    authentication_classes = [TokenAuthentication]
     pagination_class = StoreViewsPagination
     filterset_class = DaysFilter
     http_method_names = ["get", "put", "patch"]
@@ -95,7 +95,7 @@ class StoreDaysView(
 class StoreHoursView(GenericAPIView, List, Retrieve, Update):
     serializer_class = HoursSerializer
     permission_classes = [IsAuthenticated]
-    authentication_classes = [TokenAuthentication, SessionAuthentication]
+    authentication_classes = [TokenAuthentication]
     pagination_class = StoreViewsPagination
     filterset_class = HoursFilter
     http_method_names = ["get", "put", "patch"]
@@ -128,7 +128,7 @@ class StoreHoursView(GenericAPIView, List, Retrieve, Update):
 class StoreManagersView(GenericAPIView, List, Retrieve, Update):
     serializer_class = ManagersSerializer
     permission_classes = [IsAuthenticated]
-    authentication_classes = [TokenAuthentication, SessionAuthentication]
+    authentication_classes = [TokenAuthentication]
     pagination_class = StoreViewsPagination
     filterset_class = ManagersFilter
     http_method_names = ["get", "put", "patch"]
@@ -167,4 +167,4 @@ def get_user_stores(user):
 
 
 def is_list_view(request):
-    return list in request.path
+    return "list" in request.path
