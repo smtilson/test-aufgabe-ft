@@ -1,4 +1,5 @@
-#These are taken from a different project I was working on.
+# This is the initial requirements file I used for development.
+# Not all of the packages are necessary.
 
 asgiref==3.8.1
 Django==5.1.6
