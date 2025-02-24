@@ -40,9 +40,10 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework.authtoken",
     "django_filters",
+    "drf_yasg",
+    "django_extensions",
     "stores",
     "users",
-    "drf_yasg",
 ]
 
 MIDDLEWARE = [
@@ -53,7 +54,6 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    # "stores.middleware.RequestDebugMiddleware",
 ]
 
 ROOT_URLCONF = "test_api.urls"
