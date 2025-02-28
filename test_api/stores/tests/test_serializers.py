@@ -233,7 +233,7 @@ class StoreSerializerTest(BaseTestCase):
             ("123", "exactly 5 digits"),
             ("123456", "exactly 5 digits"),
             ("123ab", "only numbers"),
-            ("", "to be empty"),
+            ("", "not be blank"),
             (["12345"], "not a valid string"),  # single non-string case
         ]
 
@@ -259,8 +259,8 @@ class StoreSerializerTest(BaseTestCase):
     def test_validation_name(self):
         invalid_name_cases = [
             (["Store Name"], "not a valid string"),
-            ("", "to be empty"),
-            (" ", "to be empty"),
+            ("", "not be blank"),
+            (" ", "not be blank"),
             ({"name": "Store"}, "not a valid string"),
         ]
 
@@ -290,8 +290,8 @@ class StoreSerializerTest(BaseTestCase):
     def test_validation_address(self):
         invalid_address_cases = [
             (["123 Main St"], "not a valid string"),
-            ("", "to be empty"),
-            (" ", "to be empty"),
+            ("", "not be blank"),
+            (" ", "not be blank"),
             ({"street": "123 Main"}, "not a valid string"),
             (12345, "contain both numbers and text"),
         ]
@@ -342,7 +342,7 @@ class StoreSerializerTest(BaseTestCase):
             ),
             (
                 {"opening_time": ""},
-                ("opening_time", "to be empty"),
+                ("opening_time", "Time has wrong format"),
             ),
             (
                 {"opening_time": ["asd", "123"]},
@@ -363,6 +363,7 @@ class StoreSerializerTest(BaseTestCase):
                 self.store, data=test_data, partial=True, context=self.context_PATCH
             )
             self.assertFalse(serializer.is_valid())
+            print(test_data, error_field, expected_error, serializer.errors)
             self.assertIn(expected_error, str(serializer.errors[error_field]))
 
         # Test valid case
@@ -641,7 +642,7 @@ class HoursSerializerTest(BaseTestCase):
             ),
             (
                 {"opening_time": ""},
-                ("opening_time", "to be empty"),
+                ("opening_time", "Time has wrong format"),
             ),
             (
                 {"opening_time": ["asd", "123"]},
@@ -662,6 +663,7 @@ class HoursSerializerTest(BaseTestCase):
                 self.store, data=test_data, partial=True, context=self.context_PATCH
             )
             self.assertFalse(serializer.is_valid())
+
             self.assertIn(expected_error, str(serializer.errors[error_field]))
 
         # Test valid case

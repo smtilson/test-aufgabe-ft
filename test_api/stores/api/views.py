@@ -44,6 +44,19 @@ class StoreViewsPagination(PageNumberPagination):
     max_page_size = 100
 
 
+class ValidationMixin:
+    required_fields = ["name", "address", "city", "state", "owner_id"]
+
+    def _validate_required_fields(self, request, required_fields):
+        errors = {}
+        for field in required_fields:
+            if field not in request.data:
+                errors[field] = f"The {field} field is required."
+        return errors
+
+    # def _validate_
+
+
 class StoreViewSet(ModelViewSet):
     serializer_class = StoreSerializer
     permission_classes = [IsAuthenticated]
@@ -66,6 +79,16 @@ class StoreViewSet(ModelViewSet):
         msg = "Create a store by filling the relevant fields."
         response.data["message"] = msg
         return response
+
+    def create(self, request, *args, **kwargs):
+        required_fields = ["name", "description", "address", "phone_number"]
+        errors = {}
+        for field in required_fields:
+            if field not in request.data:
+                errors[field] = f"The {field} field is required."
+        if errors:
+            return Response(errors, status=status.HTTP_400_BAD_REQUEST)
+        return super().create(request, *args, **kwargs)
 
 
 class StoreDaysView(List, Retrieve, Update, GenericAPIView):

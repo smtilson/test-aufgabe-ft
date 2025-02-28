@@ -3,8 +3,10 @@ from ..models import Store, DAYS_OF_WEEK
 from users.models import CustomUser
 
 
-class BaseCheckMixin:
-    def check_unknown_fields(self, data):
+class BaseSerializerMixin:
+    # Check format methods
+    # Checks if field names are valid
+    def _check_unknown_fields(self, data):
         # Get the known fields from the serializer
         known_fields = set(self.fields.keys())
         # Get the incoming fields from the data
@@ -17,8 +19,9 @@ class BaseCheckMixin:
                 {field: "This field is not recognized." for field in unknown_fields}
             )
 
-    def check_required_fields(self, data):
-        if not self.is_creation():
+    # Checks if required fields are present during creation
+    def _check_required_fields(self, data):
+        if not self.HTTP_method == "POST":
             return
         required_fields = ["name", "owner_id", "address", "city", "state_abbrv"]
         errors = {}
@@ -29,37 +32,47 @@ class BaseCheckMixin:
         if errors:
             raise serializers.ValidationError(errors)
 
-    def check_open_closing_times(self, data):
+    # Validation methods
+    # Ensures partial updates s not empty
+    def _valid_partial_update_non_empty(self, data):
+        if self.HTTP_method == "PATCH":
+            for field_name, value in data.items():
+                if isinstance(value, str) and not value.strip():
+                    raise serializers.ValidationError(
+                        {field_name: f"The {field_name} field may not be blank."}
+                    )
+        return data
+
+    def _valid_hours(self, data):
         opening_time = data.get("opening_time")
         closing_time = data.get("closing_time")
         if opening_time and closing_time and opening_time >= closing_time:
             raise serializers.ValidationError(
                 {"closing_time": "Closing time must be later than opening time"}
             )
+        return data
 
-    def check_empty_update(self, data):
-        if self.context["request"].method == "PATCH":
-            for field_name, value in data.items():
-                if isinstance(value, str) and not value.strip():
-                    raise serializers.ValidationError(
-                        {field_name: "You cannot update a field to be empty"}
-                    )
+    # Returns method
+    @property
+    def HTTP_method(self):
+        request = self.context.get("request")
+        return request.method if request else ""
 
 
-class StoreSerializer(serializers.ModelSerializer, BaseCheckMixin):
+class StoreSerializer(serializers.ModelSerializer, BaseSerializerMixin):
     days_of_operation = serializers.SerializerMethodField()
     owner = serializers.SerializerMethodField()
     owner_id = serializers.PrimaryKeyRelatedField(
         queryset=CustomUser.objects.all(), required=False
     )
     managers = serializers.SerializerMethodField()
-    name = serializers.CharField(required=False)
-    address = serializers.CharField(required=False)
-    city = serializers.CharField(required=False)
+    name = serializers.CharField(required=False, allow_blank=False)
+    address = serializers.CharField(required=False, allow_blank=False)
+    city = serializers.CharField(required=False, allow_blank=False)
     state_abbrv = serializers.CharField(
-        max_length=2, style={"input_type": "string"}, required=False
+        max_length=2, style={"input_type": "string"}, required=False, allow_blank=False
     )
-    plz = serializers.CharField(required=False)
+    plz = serializers.CharField(required=False, allow_blank=False)
     opening_time = serializers.TimeField(required=False)
     closing_time = serializers.TimeField(required=False)
     montag = serializers.BooleanField(required=False)
@@ -109,13 +122,9 @@ class StoreSerializer(serializers.ModelSerializer, BaseCheckMixin):
         return instance
 
     def to_internal_value(self, data):
-        self.check_unknown_fields(data)
-        self.check_empty_update(data)
-        self.check_required_fields(data)
+        self._check_unknown_fields(data)
+        self._check_required_fields(data)
         return super().to_internal_value(data)
-
-    def is_creation(self):
-        return self.context.get("request") and self.context["request"].method == "POST"
 
     def validate_state_abbrv(self, value):
         if value not in Store.STATES:
@@ -149,14 +158,13 @@ class StoreSerializer(serializers.ModelSerializer, BaseCheckMixin):
         return value
 
     def validate(self, data):
-        self.check_empty_update(data)
-        self.check_required_fields(data)
-        self.check_open_closing_times(data)
+        data = self._valid_hours(data)
+        data = self._valid_partial_update_non_empty(data)
         data = super().validate(data)
         return data
 
 
-class DaysSerializer(serializers.ModelSerializer):
+class DaysSerializer(serializers.ModelSerializer, BaseSerializerMixin):
     id = serializers.IntegerField(read_only=True, required=False)
     name = serializers.CharField(read_only=True, required=False)
     owner = serializers.SerializerMethodField(required=False)
@@ -197,24 +205,16 @@ class DaysSerializer(serializers.ModelSerializer):
     def get_days_of_operation(self, obj):
         return obj.days_open
 
-    def check_unknown_fields(self, data):
-        # Get the known fields from the serializer
-        known_fields = set(self.fields.keys())
-        # Get the incoming fields from the data
-        incoming_fields = set(data.keys())
-        # Find any unknown fields
-        unknown_fields = incoming_fields - known_fields
-        if unknown_fields:
-            raise serializers.ValidationError(
-                {field: "This field is not recognized." for field in unknown_fields}
-            )
-
     def to_internal_value(self, data):
-        self.check_unknown_fields(data)
+        self._check_unknown_fields(data)
         return super().to_internal_value(data)
 
+    def validate(self, data):
+        data = self._valid_partial_update_non_empty(data)
+        return super().validate(data)
 
-class HoursSerializer(serializers.ModelSerializer, BaseCheckMixin):
+
+class HoursSerializer(serializers.ModelSerializer, BaseSerializerMixin):
     id = serializers.IntegerField(read_only=True, required=False)
     name = serializers.CharField(read_only=True, required=False)
     owner = serializers.SerializerMethodField()
@@ -246,21 +246,16 @@ class HoursSerializer(serializers.ModelSerializer, BaseCheckMixin):
         return obj.days_open
 
     def validate(self, data):
-        data = super().validate(data)
-        opening_time = data.get("opening_time")
-        closing_time = data.get("closing_time")
-        if opening_time and closing_time and opening_time >= closing_time:
-            raise serializers.ValidationError(
-                {"closing_time": "Closing time must be later than opening time"}
-            )
-        return data
+        data = self._valid_hours(data)
+        data = self._valid_partial_update_non_empty(data)
+        return super().validate(data)
 
     def to_internal_value(self, data):
-        self.check_unknown_fields(data)
+        self._check_unknown_fields(data)
         return super().to_internal_value(data)
 
 
-class ManagersSerializer(serializers.ModelSerializer, BaseCheckMixin):
+class ManagersSerializer(serializers.ModelSerializer, BaseSerializerMixin):
     id = serializers.IntegerField(read_only=True, required=False)
     name = serializers.CharField(read_only=True, required=False)
     owner = serializers.SerializerMethodField()
@@ -302,5 +297,9 @@ class ManagersSerializer(serializers.ModelSerializer, BaseCheckMixin):
         return instance
 
     def to_internal_value(self, data):
-        self.check_unknown_fields(data)
+        self._check_unknown_fields(data)
         return super().to_internal_value(data)
+
+    def validate(self, data):
+        data = self._valid_partial_update_non_empty(data)
+        return super().validate(data)
