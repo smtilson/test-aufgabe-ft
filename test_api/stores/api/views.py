@@ -24,7 +24,7 @@ from rest_framework.mixins import (
     UpdateModelMixin as Update,
 )
 
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.permissions import IsAuthenticated  # AllowAny is not used
 from rest_framework.authentication import TokenAuthentication, SessionAuthentication
 from rest_framework.pagination import PageNumberPagination
 from django.db.models import Q
@@ -45,7 +45,13 @@ class StoreViewsPagination(PageNumberPagination):
 
 
 class ValidationMixin:
-    required_fields = ["name", "address", "city", "state", "owner_id"]
+    required_fields = [
+        "name",
+        "address",
+        "city",
+        "state",
+        "owner_id",
+    ]  # Uses "state" instead of "state_abbrv"
 
     def _validate_required_fields(self, request, required_fields):
         errors = {}
@@ -54,10 +60,27 @@ class ValidationMixin:
                 errors[field] = f"The {field} field is required."
         return errors
 
-    # def _validate_
+    def _validate_partial_update_non_empty(self, request):
+        errors = {}
+        for field, value in request.data.items():
+            if isinstance(value, str) and not value.strip():
+                errors[field] = f"The {field} field cannot be blank."
+        return errors
+
+    def create(self, request, *args, **kwargs):
+        errors = self._validate_required_fields(request, self.required_fields)
+        if errors:
+            return Response(errors, status=status.HTTP_400_BAD_REQUEST)
+        return super().create(request, *args, **kwargs)
+
+    def partial_update(self, request, *args, **kwargs):
+        errors = self._validate_partial_update_non_empty(request)
+        if errors:
+            return Response(errors, status=status.HTTP_400_BAD_REQUEST)
+        return super().partial_update(request, *args, **kwargs)
 
 
-class StoreViewSet(ModelViewSet):
+class StoreViewSet(ValidationMixin, ModelViewSet):
     serializer_class = StoreSerializer
     permission_classes = [IsAuthenticated]
     authentication_classes = [TokenAuthentication, SessionAuthentication]
@@ -80,18 +103,18 @@ class StoreViewSet(ModelViewSet):
         response.data["message"] = msg
         return response
 
-    def create(self, request, *args, **kwargs):
-        required_fields = ["name", "description", "address", "phone_number"]
-        errors = {}
-        for field in required_fields:
-            if field not in request.data:
-                errors[field] = f"The {field} field is required."
-        if errors:
-            return Response(errors, status=status.HTTP_400_BAD_REQUEST)
-        return super().create(request, *args, **kwargs)
+    def destroy(self, request, *args, **kwargs):
+        user = request.user
+        store = self.get_object()
+        if user.is_superuser or user.id == store.owner_id:
+            return super().destroy(request, *args, **kwargs)
+        else:
+            return Response(
+                {"error": "You do not have permissions to delete this store."}
+            )
 
 
-class StoreDaysView(List, Retrieve, Update, GenericAPIView):
+class StoreDaysView(ValidationMixin, List, Retrieve, Update, GenericAPIView):
     serializer_class = DaysSerializer
     permission_classes = [IsAuthenticated]
     authentication_classes = [TokenAuthentication, SessionAuthentication]
@@ -122,7 +145,7 @@ class StoreDaysView(List, Retrieve, Update, GenericAPIView):
         return self.partial_update(request, *args, **kwargs)
 
 
-class StoreHoursView(GenericAPIView, List, Retrieve, Update):
+class StoreHoursView(ValidationMixin, List, Retrieve, Update, GenericAPIView):
     serializer_class = HoursSerializer
     permission_classes = [IsAuthenticated]
     authentication_classes = [TokenAuthentication, SessionAuthentication]
@@ -150,11 +173,11 @@ class StoreHoursView(GenericAPIView, List, Retrieve, Update):
 
     def patch(self, request, *args, **kwargs):
         if is_list_view(request):
-            return Response(status=status.HTTP_405_METHOD_NOT)
+            return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
         return self.partial_update(request, *args, **kwargs)
 
 
-class StoreManagersView(GenericAPIView, List, Retrieve, Update):
+class StoreManagersView(ValidationMixin, List, Retrieve, Update, GenericAPIView):
     serializer_class = ManagersSerializer
     permission_classes = [IsAuthenticated]
     authentication_classes = [TokenAuthentication, SessionAuthentication]
@@ -162,6 +185,9 @@ class StoreManagersView(GenericAPIView, List, Retrieve, Update):
     filterset_class = ManagersFilter
     http_method_names = ["get", "put", "patch"]
 
+    MANAGER_MESSAGE = "Modify the managers of the store by selecting a given user. Selecting a user that is already a manager will remove their manager status."
+
+    # Only the owner of a store can edit the managers of that store
     def get_queryset(self):
         return Store.objects.filter(Q(owner_id=self.request.user))
 
@@ -169,17 +195,13 @@ class StoreManagersView(GenericAPIView, List, Retrieve, Update):
         pk = kwargs.get("pk", None)
         if pk:
             response = self.retrieve(request, *args, **kwargs)
-            msg = "Modify the managers of the store by selecting a given user."
-            msg += " Selecting a user that is already a manager will remove their manager status."
-            response.data["message"] = msg
+            response.data["message"] = self.MANAGER_MESSAGE
             return response
         return self.list(request, *args, **kwargs)
 
     def put(self, request, *args, **kwargs):
         response = self.update(request, *args, **kwargs)
-        msg = "Modify the managers of the store by selecting a given user."
-        msg += " Selecting a user that is already a manager will remove their manager status."
-        response.data["message"] = msg
+        response.data["message"] = self.MANAGER_MESSAGE
         return response
 
     def patch(self, request, *args, **kwargs):

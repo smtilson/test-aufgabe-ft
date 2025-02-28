@@ -19,29 +19,8 @@ class BaseSerializerMixin:
                 {field: "This field is not recognized." for field in unknown_fields}
             )
 
-    # Checks if required fields are present during creation
-    def _check_required_fields(self, data):
-        if not self.HTTP_method == "POST":
-            return
-        required_fields = ["name", "owner_id", "address", "city", "state_abbrv"]
-        errors = {}
-        for field in required_fields:
-            if field not in data:
-                errors[field] = f"The field {field} is required for store creation."
-
-        if errors:
-            raise serializers.ValidationError(errors)
-
     # Validation methods
     # Ensures partial updates s not empty
-    def _valid_partial_update_non_empty(self, data):
-        if self.HTTP_method == "PATCH":
-            for field_name, value in data.items():
-                if isinstance(value, str) and not value.strip():
-                    raise serializers.ValidationError(
-                        {field_name: f"The {field_name} field may not be blank."}
-                    )
-        return data
 
     def _valid_hours(self, data):
         opening_time = data.get("opening_time")
@@ -51,12 +30,6 @@ class BaseSerializerMixin:
                 {"closing_time": "Closing time must be later than opening time"}
             )
         return data
-
-    # Returns method
-    @property
-    def HTTP_method(self):
-        request = self.context.get("request")
-        return request.method if request else ""
 
 
 class StoreSerializer(serializers.ModelSerializer, BaseSerializerMixin):
