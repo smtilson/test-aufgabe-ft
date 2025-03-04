@@ -11,17 +11,20 @@ User = get_user_model()
 
 
 class StoreModelTest(StoreBaseTestCase):
-    
+
     def setUp(self):
         super().setUp()
         self.owner = self.owner1
         self.manager = self.manager1
+
     # Creation Tests
     def test_store_creation(self):
-        store = Store.objects.create(**STORE2_DATA, owner_id=self.owner, **self.initial_days, **self.times)
-        
+        store = Store.objects.create(
+            **STORE2_DATA, owner_id=self.owner, **self.initial_days, **self.times
+        )
+
         store.refresh_from_db()
-        
+
         self.assertEqual(store.name, "Test Store1")
         self.assertEqual(store.address, "123 Main St1")
         self.assertEqual(store.city, "Test City1")
@@ -44,7 +47,6 @@ class StoreModelTest(StoreBaseTestCase):
             setattr(self.store, day, False)
         self.store.save()
         self.assertEqual(self.store.days_open, str([]))
-        
 
     # Validation Tests
     def test_invalid_state_abbreviation(self):
@@ -118,7 +120,7 @@ class StoreModelTest(StoreBaseTestCase):
         self.assertEqual(stored_store.state_abbrv, "BE")  # CharField with choices
         self.assertTrue(stored_store.montag)  # BooleanField
         self.assertEqual(stored_store.opening_time, time(7, 0))  # TimeField
-        self.assertEqual(list(stored_store.manager_ids.all()), [])  # ManyToManyField
+        self.assertEqual(stored_store.manager_ids.count(), 1)  # ManyToManyField
 
     def test_delete_store(self):
         store_id = self.store.id
@@ -128,30 +130,24 @@ class StoreModelTest(StoreBaseTestCase):
     # Manager relationship Tests
     def test_manager_operations(self):
         # Create test managers
-        manager1 = User.objects.create_user(
-            email="manager1@test.com",
-            password="testpass123",
-            first_name="Manager",
-            last_name="One",
-        )
-        manager2 = User.objects.create_user(
-            email="manager2@test.com",
-            password="testpass123",
-            first_name="Manager",
-            last_name="Two",
-        )
+        manager2 = User.objects.create_user(**MANAGER2_DATA)
+        manager3 = User.objects.create_user(**MANAGER3_DATA)
 
         # Test adding managers
-        self.store.manager_ids.add(manager1, manager2)
-        self.assertEqual(self.store.manager_ids.count(), 2)
-        self.assertIn(manager1, self.store.manager_ids.all())
+        old = self.store.manager_ids.count()
+        self.store.manager_ids.add(manager2, manager3)
+        self.assertEqual(self.store.manager_ids.count(), old + 2)
+        self.assertIn(self.manager, self.store.manager_ids.all())
         self.assertIn(manager2, self.store.manager_ids.all())
+        self.assertIn(manager3, self.store.manager_ids.all())
 
         # Test removing a manager
-        self.store.manager_ids.remove(manager1)
-        self.assertEqual(self.store.manager_ids.count(), 1)
-        self.assertNotIn(manager1, self.store.manager_ids.all())
-        self.assertIn(manager2, self.store.manager_ids.all())
+        self.store.refresh_from_db()
+        current = self.store.manager_ids.count()
+        self.store.manager_ids.remove(manager2)
+        self.assertEqual(self.store.manager_ids.count(), current - 1)
+        self.assertNotIn(manager2, self.store.manager_ids.all())
+        self.assertIn(manager3, self.store.manager_ids.all())
 
         # Test clearing all managers
         self.store.manager_ids.clear()

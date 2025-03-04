@@ -16,11 +16,6 @@ class AbstractBaseTestCase(object):
         """Creates a single user and adds to users dictionary."""
         user = CustomUser.objects.create_user(**data)
         setattr(self, f"{role}{number}", user)
-
-        # Create users dictionary if it doesn't exist
-        if not hasattr(self, "users"):
-            self.users = {}
-        self.users[f"{role}{number}"] = user
         return user
 
     def _setup_common_data(self):
@@ -73,6 +68,7 @@ class APIBaseTestCase(APITestCase, AbstractBaseTestCase):
         clear_url_caches()
 
         # Create users
+        self._setup_superuser()
         self._create_users()
 
         # Setup common data
@@ -85,11 +81,8 @@ class APIBaseTestCase(APITestCase, AbstractBaseTestCase):
         self.store1.manager_ids.add(self.manager1)
         self.store2.manager_ids.add(self.manager2)
 
-        # Create and setup authentication
+        # Create and setup authentication, and context requests
         self._setup_authentication()
-
-        # Setup admin/superuser if needed
-        self._setup_superuser()
         self._setup_context_requests()
 
     def _create_users(self):
@@ -127,11 +120,13 @@ class APIBaseTestCase(APITestCase, AbstractBaseTestCase):
             defaults={"password": "superuser", "is_superuser": True, "is_staff": True},
         )
         if created:
+            # WORKAROUND: Explicitly setting auth_token attribute to bypass property
+            # method issues with superusers in test environment
+            self.super_user.auth_token, _ = Token.objects.get_or_create(
+                user=self.super_user
+            )
             self.super_user.set_password("superuser")
             self.super_user.save()
-
-        # Add superuser to the users dictionary
-        self.users["superuser"] = self.super_user
 
     def _setup_context_requests(self):
         """Create mock request contexts for serializer testing"""
@@ -150,7 +145,7 @@ class APIBaseTestCase(APITestCase, AbstractBaseTestCase):
         Raises:
             ValueError: If user_key is not found in the users dictionary
         """
-
+        user.refresh_from_db()
         token = user.auth_token
         self.client.credentials(HTTP_AUTHORIZATION=f"Token {token}")
         return self  # Allow method chaining

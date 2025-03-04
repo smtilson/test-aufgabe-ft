@@ -196,18 +196,6 @@ class StoreFilter(FilterSet, BaseFilterValidationMixin):
     state_abbrv = ChoiceFilter(choices=state_choices, lookup_expr="icontains")
     plz = CharFilter(lookup_expr="exact")
 
-    # Copied from ManagersFilter pattern
-    owner_id = NumberFilter(
-        lookup_expr="exact",
-        validators=[MinValueValidator(1, message="Invalid owner ID")],
-    )
-    owner_first_name = CharFilter(
-        field_name="owner_id__first_name", lookup_expr="icontains"
-    )
-    owner_last_name = CharFilter(
-        field_name="owner_id__last_name", lookup_expr="icontains"
-    )
-
     # From ManagersFilter
     manager_ids = NumberFilter(
         lookup_expr="exact",
@@ -246,8 +234,6 @@ class StoreFilter(FilterSet, BaseFilterValidationMixin):
             ("closing_time", "closes"),
             ("manager_ids__first_name", "manager_first_name"),
             ("manager_ids__last_name", "manager_last_name"),
-            ("owner_id__first_name", "owner_first_name"),
-            ("owner_id__last_name", "owner_last_name"),
         )
     )
 
@@ -260,9 +246,6 @@ class StoreFilter(FilterSet, BaseFilterValidationMixin):
             "address",
             "state_abbrv",
             "plz",
-            "owner_id",
-            "owner_first_name",
-            "owner_last_name",
             "manager_ids",
             "manager_first_name",
             "manager_last_name",

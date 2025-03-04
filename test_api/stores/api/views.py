@@ -49,7 +49,7 @@ class ValidationMixin:
         "name",
         "address",
         "city",
-        "state",
+        "state_abbrv",
         "owner_id",
     ]  # Uses "state" instead of "state_abbrv"
 
@@ -106,8 +106,14 @@ class StoreViewSet(ValidationMixin, ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         user = request.user
         store = self.get_object()
+        print(user.is_superuser)
+        print(user.id)
+        print(store.owner_id)
         if user.is_superuser or user.id == store.owner_id:
-            return super().destroy(request, *args, **kwargs)
+            response = super().destroy(request, *args, **kwargs)
+            print(f"Store deleted: {store.name}")
+            print(response.status_code)
+            return response
         else:
             return Response(
                 {"error": "You do not have permissions to delete this store."}

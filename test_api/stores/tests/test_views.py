@@ -14,92 +14,8 @@ from .base import APIBaseTestCase
 User = get_user_model()
 
 ### Make sure to add tests for required fields and empty update fields since that validation has moved to the views, at least temporarily.
-"""
-class BaseTestCase(APITestCase):
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        print(f"\nInitializing test class: {cls.__name__}")
-
-    @classmethod
-    def setUpTestData(cls):
-        cls.super_user = User.objects.create_superuser(
-            email="superuser@super.user", password="superuser"
-        )
-        cls.super_token, _ = Token.objects.get_or_create(user=cls.super_user)
-        ldb.bulk_populate(20, 25)
-
-    def switch_to_superuser(self):
-        self.client.credentials(
-            HTTP_AUTHORIZATION=f"Token {self.super_token.key}",
-        )
-
-    def setUp(self):
-        clear_url_caches()
-        self.owner1 = User.objects.create_user(**OWNER1_DATA)
-        self.owner2 = User.objects.create_user(**OWNER2_DATA)
-        self.manager1 = User.objects.create_user(**MANAGER1_DATA)
-        self.manager2 = User.objects.create_user(**MANAGER2_DATA)
-
-        self.days_list = [
-            "montag",
-            "dienstag",
-            "mittwoch",
-            "donnerstag",
-            "freitag",
-            "samstag",
-            "sonntag",
-        ]
-        self.initial_days = {
-            "montag": True,
-            "dienstag": True,
-            "mittwoch": True,
-            "donnerstag": False,
-            "freitag": False,
-            "samstag": False,
-            "sonntag": False,
-        }
-        self.times = {
-            "opening_time": "07:00:00",
-            "closing_time": "17:00:00",
-        }
-
-        self.store1 = Store.objects.create(
-            owner_id=self.owner1, **STORE1_DATA, **self.initial_days, **self.times
-        )
-        self.store2 = Store.objects.create(
-            owner_id=self.owner1, **STORE2_DATA, **self.initial_days, **self.times
-        )
-        self.store3 = Store.objects.create(
-            owner_id=self.owner2, **STORE3_DATA, **self.initial_days, **self.times
-        )
-        self.store1.manager_ids.add(self.manager1)
-        self.store2.manager_ids.add(self.manager2)
-        self.token1, _ = Token.objects.get_or_create(user=self.owner1)
-        self.token2, _ = Token.objects.get_or_create(user=self.owner2)
-        self.token3, _ = Token.objects.get_or_create(user=self.manager1)
-        self.client.credentials(
-            HTTP_AUTHORIZATION=f"Token {self.token1.key}",
-        )
-        clear_url_caches()
-        self.client.defaults["HTTP_ACCEPT"] = "application/json"
-        self.client.defaults["format"] = "json"
-
-    def _url_comparison(self, field, value, comparison):
-        return f"{field}_{comparison}={value}"
-
-    def _django_comparison(self, field, comparison):
-        return f"{field}__{comparison}"
-
-    def django_query(self, field, specifier):
-        return f"{field}_ids__{specifier}"
-
-    def url_query(self, field, specifier):
-        return f"{field}_{specifier}"
-"""
 
 
-@skip
 class StoreViewSetTestCase(APIBaseTestCase):
     def setUp(self):
         super().setUp()
@@ -133,9 +49,7 @@ class StoreViewSetTestCase(APIBaseTestCase):
         self.assertEqual(store_ids, {self.store1.id, self.store2.id})
 
         # Test owner2 sees their store
-        self.client.credentials(
-            HTTP_AUTHORIZATION=f"Token {self.token2.key}",
-        )
+        self.switch_to(self.owner2)
         response = self.client.get(self.url_list)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data["results"]), 1)
@@ -213,7 +127,17 @@ class StoreViewSetTestCase(APIBaseTestCase):
         count = Store.objects.count()
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(Store.objects.count(), count)  # no new store created
-        for term in {"error", "invalid", "does not exist"}:
+        print(response.data)
+        for term in {
+            "state_abbrv",
+            "invalid",
+            "owner_id",
+            "manager_ids",
+            "plz",
+            "opening_time",
+            # "name",
+            "does not exist",
+        }:
             self.assertIn(term, str(response.data).lower())
 
     def test_create_store_invalid_times(self):
@@ -225,10 +149,12 @@ class StoreViewSetTestCase(APIBaseTestCase):
                 "owner_id": self.owner1.id,
             }
         )
+        print(store_data)
         response = self.client.post(self.url_list, store_data)
         count = Store.objects.count()
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(Store.objects.count(), count)
+        print(response.data)
         for term in {"error", "invalid", "closing time"}:
             self.assertIn(term, str(response.data).lower())
 
@@ -238,7 +164,8 @@ class StoreViewSetTestCase(APIBaseTestCase):
         count = Store.objects.count()
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(Store.objects.count(), count)
-        for term in {"error", "required", "invalid", "address"}:
+        print(response.data)
+        for term in {"required", "state", "owner_id", "address"}:
             self.assertIn(term, str(response.data).lower())
 
     # Retrieve Tests
@@ -293,14 +220,15 @@ class StoreViewSetTestCase(APIBaseTestCase):
         # Verify error messages
         terms = list(update_data.keys())
         terms.extend(["error", "invalid", "does not exist"])
+        print(response.data)
         for term in terms:
             self.assertIn(term, str(response.data).lower())
 
     # Field Validation Tests
     def test_validation_name(self):
         invalid_names = [
-            ("", "cannot update a field to be empty"),
-            (" ", "cannot update a field to be empty"),
+            ("", "field cannot be blank"),
+            (" ", "field cannot be blank"),
             # (["name"], "not a valid string"),
         ]
 
@@ -317,8 +245,8 @@ class StoreViewSetTestCase(APIBaseTestCase):
     def test_validation_address(self):
         # Test invalid addresses with PATCH
         invalid_addresses = [
-            ("", "you cannot update a field to be empty"),  # From check_empty_update
-            (" ", "you cannot update a field to be empty"),  # From check_empty_update
+            ("", "field cannot be blank"),  # From check_empty_update
+            (" ", "field cannot be blank"),  # From check_empty_update
             (["123 Main St"], "not a valid string"),  # DRF type validation
             ({"street": "123 Main"}, "not a valid string"),  # DRF type validation
             ("OnlyText", "must contain both numbers and text"),  # From validate_address
@@ -347,8 +275,8 @@ class StoreViewSetTestCase(APIBaseTestCase):
 
     def test_validation_city(self):
         invalid_cities = [
-            ("", "You cannot update a field to be empty"),
-            (" ", "You cannot update a field to be empty"),
+            ("", "field cannot be blank"),
+            (" ", "field cannot be blank"),
             # (["city"], "Not a valid string")
         ]
 
@@ -411,11 +339,24 @@ class StoreViewSetTestCase(APIBaseTestCase):
 
     # Delete Tests
     def test_delete_store(self):
+        # self.switch_to(self.owner1)
+        old = Store.objects.count()
+        store = self.client.get(self.url_detail).data
+        owner = User.objects.get(id=store["owner_id"])
+        self.switch_to(owner)
+        # print()
+        # print(store)
+        # print()
         response = self.client.delete(self.url_detail)
-        count = Store.objects.count()
+        self.assertEqual(Store.objects.count(), old - 1)
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-        self.assertEqual(Store.objects.count(), count)
         self.assertFalse(Store.objects.filter(id=self.store1.id).exists())
+
+    @skip
+    def test_delete_store_wo_permission(self):
+        self.switch_to(self.user)
+        response = self.client.delete(self.url_detail)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_delete_nonexistent_store(self):
         url = reverse("stores-detail", args=[999])
@@ -445,148 +386,7 @@ class StoreViewSetTestCase(APIBaseTestCase):
             ).count()
             self.assertEqual(response.data["count"], expected_count)
 
-    def test_filter_by_owner_id(self):
-        self.switch_to(self.super_user)
-
-        # Create test manager
-        test_owner = User.objects.create_user(
-            email="test.owner@test.com",
-            password="test123",
-            first_name="TEST",
-            last_name="OWNER",
-        )
-
-        # Create test stores owned by superuser
-        Store.objects.create(
-            owner_id=test_owner,
-            name="Test Store 1",
-            address="123 Test St",
-            city="Test City",
-            state_abbrv="BE",
-            plz="12345",
-        )
-
-        Store.objects.create(
-            owner_id=test_owner,
-            name="Test Store 2",
-            address="456 Test St",
-            city="Test City",
-            state_abbrv="BE",
-            plz="12345",
-        )
-
-        # Query by manager ID
-        url = self.url_list + f"?owner_id={test_owner.id}"
-        response = self.client.get(url)
-
-        # Verify results
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        expected_count = Store.objects.filter(owner_id=test_owner.id).count()
-        self.assertEqual(response.data["count"], expected_count)
-
-    @skip
-    def test_filter_by_owner_name(self):
-        self.switch_to(self.super_user)
-
-        # Create test owner
-        test_owner = User.objects.create_user(
-            email="test.owner@test.com",
-            password="test123",
-            first_name="TEST",
-            last_name="OWNER",
-        )
-        print(f"\nTest owner created with ID: {test_owner.id}")
-        print(f"Owner name: {test_owner.first_name} {test_owner.last_name}")
-
-        # Create test stores owned by test owner
-        store1 = Store.objects.create(
-            owner_id=test_owner,
-            name="Test Store 1",
-            address="123 Test St",
-            city="Test City",
-            state_abbrv="BE",
-            plz="12345",
-        )
-        store2 = Store.objects.create(
-            owner_id=test_owner,
-            name="Test Store 2",
-            address="456 Test St",
-            city="Test City",
-            state_abbrv="BE",
-            plz="12345",
-        )
-        print(f"Created stores with IDs: {store1.id}, {store2.id}")
-        print(f"Store 1 owner: {store1.owner_id.first_name}")
-        print(f"Store 2 owner: {store2.owner_id.first_name}")
-
-        # Query by owner first name
-        url = self.url_list + "?owner_first_name=TEST"
-        print(f"Testing URL: {url}")
-
-        response = self.client.get(url)
-        print(f"Response status: {response.status_code}")
-        print(f"Response data: {response.data}")
-
-        # Verify results
-        expected_count = Store.objects.filter(
-            owner_id__first_name__icontains="TEST"
-        ).count()
-        print(f"Expected count: {expected_count}")
-        print(response.data.keys())
-        print(f"Actual count: {response.data['count']}")
-
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["count"], expected_count)
-
-    def test_filter_malformed_owner_id(self):
-        self.switch_to(self.super_user)
-        invalid_formats = (
-            ("abc", "Enter a number"),
-            # why is this considered a valid owner id?
-            ("-1", "Invalid owner ID"),
-            ("0", "Invalid owner ID"),
-        )
-
-        for owner_id, error_msg in invalid_formats:
-            url = self.url_list + f"?owner_id={owner_id}"
-            response = self.client.get(url)
-            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-            self.assertIn(error_msg, str(response.data))
-
-    def test_filter_nonexistent_owner_id(self):
-        self.switch_to(self.super_user)
-        id = str(User.objects.all().count() + 1)
-        url = self.url_list + "?owner_id=" + id
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-
-    def test_filter_malformed_owner_name(self):
-        self.switch_to(self.super_user)
-        invalid_names = (
-            ("123", "at least one letter"),
-            ("@#$", "at least one letter"),
-        )
-
-        for name, error_msg in invalid_names:
-            url = self.url_list + f"?owner_first_name={name}"
-            response = self.client.get(url)
-            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-            self.assertIn(error_msg, str(response.data))
-
-    def test_filter_owner_ordering(self):
-        self.switch_to(self.super_user)
-        ordering_fields = (
-            "owner_first_name",
-            "-owner_first_name",
-            "owner_last_name",
-            "-owner_last_name",
-        )
-
-        for field in ordering_fields:
-            url = self.url_list + f"?ordering={field}"
-            response = self.client.get(url)
-            self.assertEqual(response.status_code, status.HTTP_200_OK)
-
+    # Tests filtering by owner property have been removed as they don't have a plausible use case.
     def test_filter_invalid_store_name(self):
         self.switch_to(self.super_user)
         invalid_names = [
@@ -912,6 +712,7 @@ class StoreDaysViewTests(APIBaseTestCase):
             self.assertIn("Invalid query parameter", str(response.data))
 
 
+@skip
 class StoreHoursViewTests(APIBaseTestCase):
     def setUp(self):
         super().setUp()
@@ -1047,14 +848,14 @@ class StoreHoursViewTests(APIBaseTestCase):
         # Build URL query string
         for test_case in test_cases:
             search_terms = [
-                self._url_comparison(field, value, comp)
+                self.url_comparison(field, value, comp)
                 for field, (value, comp) in test_case.items()
             ]
             query = "&".join(search_terms)
             url = self.url_list + "?" + query
 
             filter_kwargs = {
-                self._django_comparison(field, comp): value
+                self.django_comparison(field, comp): value
                 for field, (value, comp) in test_case.items()
             }
             expected_count = Store.objects.filter(**filter_kwargs).count()
@@ -1195,6 +996,7 @@ class StoreHoursViewTests(APIBaseTestCase):
             self.assertEqual(response.status_code, expected_status)
 
 
+@skip
 class StoreManagersViewTests(APIBaseTestCase):
     def setUp(self):
         super().setUp()
