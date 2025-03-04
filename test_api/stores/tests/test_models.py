@@ -3,60 +3,34 @@ from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from datetime import time
 from stores.models import Store
+from .data import *
+from .base import StoreBaseTestCase
 
-
-# Test data for users and store
-OWNER_DATA = {
-    "email": "owner@example.com",
-    "password": "STRONG_password123",
-    "first_name": "Owner",
-    "last_name": "Test",
-}
-
-MANAGER_DATA = {
-    "email": "manager@example.com",
-    "password": "STRONG_password123",
-    "first_name": "Manager",
-    "last_name": "Test",
-}
-
-STORE_DATA = {
-    "name": "Test Store",
-    "address": "123 Main St",
-    "city": "Test City",
-    "state_abbrv": "BE",
-    "plz": "12345",
-    "opening_time": time(9, 0),
-    "closing_time": time(17, 0),
-}
 
 User = get_user_model()
 
 
-class BaseTestCase(TestCase):
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        print(f"\nInitializing test class: {cls.__name__}")
-
-
-class StoreModelTest(BaseTestCase):
+class StoreModelTest(StoreBaseTestCase):
+    
     def setUp(self):
-        self.owner = User.objects.create_user(**OWNER_DATA)
-        self.manager = User.objects.create_user(**MANAGER_DATA)
-        self.store = Store.objects.create(owner_id=self.owner, **STORE_DATA)
-
+        super().setUp()
+        self.owner = self.owner1
+        self.manager = self.manager1
     # Creation Tests
     def test_store_creation(self):
-        self.assertEqual(self.store.name, "Test Store")
-        self.assertEqual(self.store.address, "123 Main St")
-        self.assertEqual(self.store.city, "Test City")
-        self.assertEqual(self.store.state_abbrv, "BE")
-        self.assertEqual(self.store.plz, "12345")
-        self.assertEqual(self.store.owner_id, self.owner)
-        self.assertEqual(self.store.manager_ids.first(), None)
-        self.assertEqual(self.store.opening_time, time(9, 0))
-        self.assertEqual(self.store.closing_time, time(17, 0))
+        store = Store.objects.create(**STORE2_DATA, owner_id=self.owner, **self.initial_days, **self.times)
+        
+        store.refresh_from_db()
+        
+        self.assertEqual(store.name, "Test Store1")
+        self.assertEqual(store.address, "123 Main St1")
+        self.assertEqual(store.city, "Test City1")
+        self.assertEqual(store.state_abbrv, "BE")
+        self.assertEqual(store.plz, "12345")
+        self.assertEqual(store.owner_id, self.owner)
+        self.assertEqual(store.manager_ids.first(), None)
+        self.assertEqual(store.opening_time, time(7, 0))
+        self.assertEqual(store.closing_time, time(17, 0))
 
     # Property Tests
     def test_store_location_properties(self):
@@ -64,12 +38,13 @@ class StoreModelTest(BaseTestCase):
         self.assertEqual(self.store.state, "Berlin")
 
     def test_days_open_property(self):
-        self.assertEqual(self.store.days_open, str([]))
         days = ["montag", "dienstag", "mittwoch"]
-        for day in days:
-            setattr(self.store, day, True)
-        self.store.save()
         self.assertEqual(self.store.days_open, str([day.capitalize() for day in days]))
+        for day in days:
+            setattr(self.store, day, False)
+        self.store.save()
+        self.assertEqual(self.store.days_open, str([]))
+        
 
     # Validation Tests
     def test_invalid_state_abbreviation(self):
@@ -141,8 +116,8 @@ class StoreModelTest(BaseTestCase):
         self.assertEqual(stored_store.name, self.store.name)  # CharField
         self.assertEqual(stored_store.owner_id, self.owner)  # ForeignKey
         self.assertEqual(stored_store.state_abbrv, "BE")  # CharField with choices
-        self.assertFalse(stored_store.montag)  # BooleanField
-        self.assertEqual(stored_store.opening_time, time(9, 0))  # TimeField
+        self.assertTrue(stored_store.montag)  # BooleanField
+        self.assertEqual(stored_store.opening_time, time(7, 0))  # TimeField
         self.assertEqual(list(stored_store.manager_ids.all()), [])  # ManyToManyField
 
     def test_delete_store(self):
