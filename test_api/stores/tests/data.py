@@ -24,6 +24,7 @@ MANAGER1_DATA = {
 }
 
 MANAGER2_DATA = {key: value + "1" for key, value in MANAGER1_DATA.items()}
+MANAGER3_DATA = {key: value + "1" for key, value in MANAGER2_DATA.items()}
 
 STORE1_DATA = {
     "name": "Test Store",

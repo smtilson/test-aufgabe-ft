@@ -19,9 +19,7 @@ class BaseSerializerMixin:
                 {field: "This field is not recognized." for field in unknown_fields}
             )
 
-    # Validation methods
-    # Ensures partial updates s not empty
-
+    # Check if hour values are valid
     def _valid_hours(self, data):
         opening_time = data.get("opening_time")
         closing_time = data.get("closing_time")
@@ -96,7 +94,6 @@ class StoreSerializer(serializers.ModelSerializer, BaseSerializerMixin):
 
     def to_internal_value(self, data):
         self._check_unknown_fields(data)
-        self._check_required_fields(data)
         return super().to_internal_value(data)
 
     def validate_state_abbrv(self, value):
@@ -132,7 +129,6 @@ class StoreSerializer(serializers.ModelSerializer, BaseSerializerMixin):
 
     def validate(self, data):
         data = self._valid_hours(data)
-        data = self._valid_partial_update_non_empty(data)
         data = super().validate(data)
         return data
 
@@ -182,10 +178,6 @@ class DaysSerializer(serializers.ModelSerializer, BaseSerializerMixin):
         self._check_unknown_fields(data)
         return super().to_internal_value(data)
 
-    def validate(self, data):
-        data = self._valid_partial_update_non_empty(data)
-        return super().validate(data)
-
 
 class HoursSerializer(serializers.ModelSerializer, BaseSerializerMixin):
     id = serializers.IntegerField(read_only=True, required=False)
@@ -220,7 +212,6 @@ class HoursSerializer(serializers.ModelSerializer, BaseSerializerMixin):
 
     def validate(self, data):
         data = self._valid_hours(data)
-        data = self._valid_partial_update_non_empty(data)
         return super().validate(data)
 
     def to_internal_value(self, data):
@@ -272,7 +263,3 @@ class ManagersSerializer(serializers.ModelSerializer, BaseSerializerMixin):
     def to_internal_value(self, data):
         self._check_unknown_fields(data)
         return super().to_internal_value(data)
-
-    def validate(self, data):
-        data = self._valid_partial_update_non_empty(data)
-        return super().validate(data)

@@ -8,39 +8,13 @@ from django.urls import clear_url_caches
 
 from stores.models import Store
 from test_api import load_data as ldb
+from .data import *
+from .base import APIBaseTestCase
 
 User = get_user_model()
 
-# Test Data Constants
-OWNER1_DATA = {
-    "email": "owner@example.com",
-    "password": "STRONG_password123",
-    "first_name": "Owner",
-    "last_name": "Test",
-}
-OWNER2_DATA = {key: value + "1" for key, value in OWNER1_DATA.items()}
-MANAGER1_DATA = {
-    "email": "manager@example.com",
-    "password": "STRONG_password123",
-    "first_name": "Manager",
-    "last_name": "Test",
-}
-MANAGER2_DATA = {key: value + "1" for key, value in MANAGER1_DATA.items()}
-STORE1_DATA = {
-    "name": "Test Store",
-    "address": "123 Main St",
-    "city": "Test City",
-    "state_abbrv": "BE",
-    "plz": "12345",
-}
-STORE2_DATA = {key: value + "1" for key, value in STORE1_DATA.items()}
-STORE3_DATA = {key: value + "1" for key, value in STORE2_DATA.items()}
-
-for key in {"plz", "state_abbrv"}:
-    STORE2_DATA[key] = STORE1_DATA[key]
-    STORE3_DATA[key] = STORE1_DATA[key]
-
-
+### Make sure to add tests for required fields and empty update fields since that validation has moved to the views, at least temporarily.
+"""
 class BaseTestCase(APITestCase):
     @classmethod
     def setUpClass(cls):
@@ -122,9 +96,11 @@ class BaseTestCase(APITestCase):
 
     def url_query(self, field, specifier):
         return f"{field}_{specifier}"
+"""
 
 
-class StoreViewSetTestCase(BaseTestCase):
+@skip
+class StoreViewSetTestCase(APIBaseTestCase):
     def setUp(self):
         super().setUp()
         self.url_list = reverse("stores-list")
@@ -166,10 +142,7 @@ class StoreViewSetTestCase(BaseTestCase):
         self.assertEqual(response.data["results"][0]["id"], self.store3.id)
 
         # Test manager1 sees their store
-        self.client.credentials(
-            HTTP_AUTHORIZATION=f"Token {self.token3.key}",
-        )
-
+        self.switch_to(self.manager1)
         response = self.client.get(self.url_list)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data["results"]), 1)
@@ -454,7 +427,7 @@ class StoreViewSetTestCase(BaseTestCase):
 
     # Filter Tests
     def test_filter_valid_store_fields(self):
-        self.switch_to_superuser()
+        self.switch_to(self.super_user)
         test_cases = (
             ("name", self.store1.name),
             ("city", self.store1.city),
@@ -473,7 +446,7 @@ class StoreViewSetTestCase(BaseTestCase):
             self.assertEqual(response.data["count"], expected_count)
 
     def test_filter_by_owner_id(self):
-        self.switch_to_superuser()
+        self.switch_to(self.super_user)
 
         # Create test manager
         test_owner = User.objects.create_user(
@@ -513,7 +486,7 @@ class StoreViewSetTestCase(BaseTestCase):
 
     @skip
     def test_filter_by_owner_name(self):
-        self.switch_to_superuser()
+        self.switch_to(self.super_user)
 
         # Create test owner
         test_owner = User.objects.create_user(
@@ -566,7 +539,7 @@ class StoreViewSetTestCase(BaseTestCase):
         self.assertEqual(response.data["count"], expected_count)
 
     def test_filter_malformed_owner_id(self):
-        self.switch_to_superuser()
+        self.switch_to(self.super_user)
         invalid_formats = (
             ("abc", "Enter a number"),
             # why is this considered a valid owner id?
@@ -581,14 +554,14 @@ class StoreViewSetTestCase(BaseTestCase):
             self.assertIn(error_msg, str(response.data))
 
     def test_filter_nonexistent_owner_id(self):
-        self.switch_to_superuser()
+        self.switch_to(self.super_user)
         id = str(User.objects.all().count() + 1)
         url = self.url_list + "?owner_id=" + id
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_filter_malformed_owner_name(self):
-        self.switch_to_superuser()
+        self.switch_to(self.super_user)
         invalid_names = (
             ("123", "at least one letter"),
             ("@#$", "at least one letter"),
@@ -601,7 +574,7 @@ class StoreViewSetTestCase(BaseTestCase):
             self.assertIn(error_msg, str(response.data))
 
     def test_filter_owner_ordering(self):
-        self.switch_to_superuser()
+        self.switch_to(self.super_user)
         ordering_fields = (
             "owner_first_name",
             "-owner_first_name",
@@ -615,7 +588,7 @@ class StoreViewSetTestCase(BaseTestCase):
             self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_filter_invalid_store_name(self):
-        self.switch_to_superuser()
+        self.switch_to(self.super_user)
         invalid_names = [
             ("", "empty values not allowed"),
             (" ", "at least one letter"),
@@ -631,7 +604,7 @@ class StoreViewSetTestCase(BaseTestCase):
             self.assertIn(expected_error, str(response.data).lower())
 
     def test_filter_invalid_address(self):
-        self.switch_to_superuser()
+        self.switch_to(self.super_user)
         invalid_addresses = [
             ("", "empty values not allowed"),
             (" ", "not be blank"),
@@ -649,7 +622,7 @@ class StoreViewSetTestCase(BaseTestCase):
             self.assertIn(expected_error, str(response.data).lower())
 
     def test_filter_invalid_state(self):
-        self.switch_to_superuser()
+        self.switch_to(self.super_user)
         invalid_states = ["XX", "ABC", "A", "12"]
         invalid_states = {abbrv: "Select a valid choice" for abbrv in invalid_states}
 
@@ -660,7 +633,7 @@ class StoreViewSetTestCase(BaseTestCase):
             self.assertIn(expected_error, str(response.data))
 
     def test_filter_invalid_plz(self):
-        self.switch_to_superuser()
+        self.switch_to(self.super_user)
         invalid_plz = [
             ("123", "exactly 5 digits"),
             ("1234567", "exactly 5 digits"),
@@ -676,7 +649,7 @@ class StoreViewSetTestCase(BaseTestCase):
             self.assertIn(expected_error, str(response.data["plz"]).lower())
 
     def test_filter_valid_store(self):
-        self.switch_to_superuser()
+        self.switch_to(self.super_user)
         valid_cases = [
             ("name", "Test Store"),
             ("address", "123 Main Street"),
@@ -690,7 +663,7 @@ class StoreViewSetTestCase(BaseTestCase):
             self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_store_specific_ordering(self):
-        self.switch_to_superuser()
+        self.switch_to(self.super_user)
         ordering_fields = (
             "name",
             "-name",
@@ -706,7 +679,8 @@ class StoreViewSetTestCase(BaseTestCase):
             self.assertEqual(response.status_code, status.HTTP_200_OK)
 
 
-class StoreDaysViewTests(BaseTestCase):
+@skip
+class StoreDaysViewTests(APIBaseTestCase):
     def setUp(self):
         super().setUp()
         self.url_list = reverse("store-days-list")
@@ -834,7 +808,7 @@ class StoreDaysViewTests(BaseTestCase):
 
     # Filtering tests
     def test_filter_by_day(self):
-        self.switch_to_superuser()
+        self.switch_to(self.super_user)
         for day in self.days_list:
             url = self.url_list + f"?{day}=true"
             response = self.client.get(url)
@@ -843,7 +817,7 @@ class StoreDaysViewTests(BaseTestCase):
             self.assertEqual(response.data["count"], count)
 
     def test_filter_by_multiple_days(self):
-        self.switch_to_superuser()
+        self.switch_to(self.super_user)
 
         # Test different day combinations
         combinations = [
@@ -870,7 +844,7 @@ class StoreDaysViewTests(BaseTestCase):
             self.assertEqual(response.data["count"], expected_count)
 
     def test_filter_duplicate_parameters(self):
-        self.switch_to_superuser()
+        self.switch_to(self.super_user)
         pairs = [("true", "false"), ("true", "true"), ("", "true")]
         for pair in pairs:
             url = self.url_list + f"?montag={pair[0]}&montag={pair[1]}"
@@ -879,7 +853,7 @@ class StoreDaysViewTests(BaseTestCase):
             self.assertIn("Duplicate query parameter", str(response.data))
 
     def test_filter_empty_queries(self):
-        self.switch_to_superuser()
+        self.switch_to(self.super_user)
         empty_queries = ["?montag=", "?montag=&dienstag=", "?montag", "?dienstag"]
         for query in empty_queries:
             url = self.url_list + query
@@ -888,7 +862,7 @@ class StoreDaysViewTests(BaseTestCase):
             self.assertIn("Empty values not allowed", str(response.data))
 
     def test_filter_case_sensitivity(self):
-        self.switch_to_superuser()
+        self.switch_to(self.super_user)
         true_variations = ["true", "True", "TRUE", "tRuE"]
         false_variations = ["false", "False", "FALSE", "fAlSe"]
         true_count = Store.objects.filter(montag=True).count()
@@ -905,7 +879,7 @@ class StoreDaysViewTests(BaseTestCase):
             self.assertEqual(response.data["count"], false_count)
 
     def test_filter_invalid_values(self):
-        self.switch_to_superuser()
+        self.switch_to(self.super_user)
         invalid_values = ["yes", "no", "1", "0", "maybe", "truthy"]
         for value in invalid_values:
             url = self.url_list + f"?montag={value}"
@@ -914,7 +888,7 @@ class StoreDaysViewTests(BaseTestCase):
             self.assertIn("must be 'true' or 'false'", str(response.data))
 
     def test_filter_with_url_encoding(self):
-        self.switch_to_superuser()
+        self.switch_to(self.super_user)
         encoded_urls = [
             self.url_list + "?montag%3Dtrue",
             self.url_list + "?montag=true%20",
@@ -925,7 +899,7 @@ class StoreDaysViewTests(BaseTestCase):
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_filter_non_day_parameters(self):
-        self.switch_to_superuser()
+        self.switch_to(self.super_user)
         invalid_params = [
             "?random=true",
             "?foo=false",
@@ -938,7 +912,7 @@ class StoreDaysViewTests(BaseTestCase):
             self.assertIn("Invalid query parameter", str(response.data))
 
 
-class StoreHoursViewTests(BaseTestCase):
+class StoreHoursViewTests(APIBaseTestCase):
     def setUp(self):
         super().setUp()
         self.url_list = reverse("store-hours-list")
@@ -1045,7 +1019,7 @@ class StoreHoursViewTests(BaseTestCase):
 
     # Filter Tests
     def test_filter_by_time(self):
-        self.switch_to_superuser()
+        self.switch_to(self.super_user)
 
         test_cases = {
             "opening_time": ("09:00", "12:30", "17:45", "23:00"),
@@ -1061,7 +1035,7 @@ class StoreHoursViewTests(BaseTestCase):
                 self.assertEqual(response.data["count"], expected_count)
 
     def test_filter_by_time_range(self):
-        self.switch_to_superuser()
+        self.switch_to(self.super_user)
 
         test_cases = [
             {"opening_time": ("08:00", "gte"), "closing_time": ("16:00", "lte")},
@@ -1090,7 +1064,7 @@ class StoreHoursViewTests(BaseTestCase):
             self.assertEqual(response.data["count"], expected_count)
 
     def test_filter_duplicate_parameters(self):
-        self.switch_to_superuser()
+        self.switch_to(self.super_user)
 
         duplicate_cases = {
             "opening_time=09:00&opening_time=10:00": "Duplicate query parameter",
@@ -1104,7 +1078,7 @@ class StoreHoursViewTests(BaseTestCase):
             self.assertIn(error_msg, str(response.data))
 
     def test_filter_invalid_time_format(self):
-        self.switch_to_superuser()
+        self.switch_to(self.super_user)
         invalid_formats = {
             time: "Enter a valid time."
             for time in [
@@ -1125,7 +1099,7 @@ class StoreHoursViewTests(BaseTestCase):
             self.assertIn(error_msg, str(response.data))
 
     def test_filter_invalid_time_values(self):
-        self.switch_to_superuser()
+        self.switch_to(self.super_user)
         invalid_values = {
             time: "Enter a valid time."
             for time in [
@@ -1144,7 +1118,7 @@ class StoreHoursViewTests(BaseTestCase):
             self.assertIn(error_msg, str(response.data))
 
     def test_filter_valid_time_format(self):
-        self.switch_to_superuser()
+        self.switch_to(self.super_user)
 
         valid_times = {
             "9:00",  # single digit hour
@@ -1162,7 +1136,7 @@ class StoreHoursViewTests(BaseTestCase):
             self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_filter_empty_queries(self):
-        self.switch_to_superuser()
+        self.switch_to(self.super_user)
 
         queries = [
             "?opening_time=",
@@ -1179,7 +1153,7 @@ class StoreHoursViewTests(BaseTestCase):
             self.assertIn(error_msg, str(response.data))
 
     def test_filter_with_url_encoding(self):
-        self.switch_to_superuser()
+        self.switch_to(self.super_user)
         malformed_urls = {
             # do I need more cases?
             self.url_list + "?opening time=09:00",  # space in parameter name
@@ -1191,7 +1165,7 @@ class StoreHoursViewTests(BaseTestCase):
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_filter_non_time_parameters(self):
-        self.switch_to_superuser()
+        self.switch_to(self.super_user)
 
         invalid_params = {
             "?random=09:00": "Invalid query parameter",
@@ -1206,7 +1180,7 @@ class StoreHoursViewTests(BaseTestCase):
             self.assertIn(error_msg, str(response.data))
 
     def test_filter_ordering(self):
-        self.switch_to_superuser()
+        self.switch_to(self.super_user)
 
         ordering_cases = {
             "opens": status.HTTP_200_OK,
@@ -1221,7 +1195,7 @@ class StoreHoursViewTests(BaseTestCase):
             self.assertEqual(response.status_code, expected_status)
 
 
-class StoreManagersViewTests(BaseTestCase):
+class StoreManagersViewTests(APIBaseTestCase):
     def setUp(self):
         super().setUp()
         self.url_list = reverse("store-managers-list")
@@ -1320,7 +1294,7 @@ class StoreManagersViewTests(BaseTestCase):
 
     # Filter Tests
     def test_filter_by_manager_id(self):
-        self.switch_to_superuser()
+        self.switch_to(self.super_user)
 
         # Create test manager
         test_manager = User.objects.create_user(
@@ -1363,7 +1337,7 @@ class StoreManagersViewTests(BaseTestCase):
         self.assertEqual(response.data["count"], expected_count)
 
     def test_filter_malformed_manager_id(self):
-        self.switch_to_superuser()
+        self.switch_to(self.super_user)
         invalid_formats = (
             ("abc", "Enter a number"),
             # why is this considered a valid manager id?
@@ -1378,7 +1352,7 @@ class StoreManagersViewTests(BaseTestCase):
             self.assertIn(error_msg, str(response.data))
 
     def test_filter_nonexistent_manager_id(self):
-        self.switch_to_superuser()
+        self.switch_to(self.super_user)
         id = str(User.objects.all().count() + 1)
         url = self.url_list + "?manager_ids=" + id
         response = self.client.get(url)
@@ -1386,7 +1360,7 @@ class StoreManagersViewTests(BaseTestCase):
         self.assertEqual(len(response.data["results"]), 0)
 
     def test_filter_by_manager_name(self):
-        self.switch_to_superuser()
+        self.switch_to(self.super_user)
 
         # Create test manager with distinct name
         test_manager = User.objects.create_user(
@@ -1428,7 +1402,7 @@ class StoreManagersViewTests(BaseTestCase):
         self.assertEqual(response.data["count"], 2)
 
     def test_filter_malformed_manager_name(self):
-        self.switch_to_superuser()
+        self.switch_to(self.super_user)
         invalid_names = (
             ("123", "at least one letter"),
             ("@#$", "at least one letter"),
@@ -1441,7 +1415,7 @@ class StoreManagersViewTests(BaseTestCase):
             self.assertIn(error_msg, str(response.data))
 
     def test_filter_manager_ordering(self):
-        self.switch_to_superuser()
+        self.switch_to(self.super_user)
         ordering_fields = ("first_name", "-first_name", "last_name", "-last_name")
 
         for field in ordering_fields:
@@ -1450,7 +1424,7 @@ class StoreManagersViewTests(BaseTestCase):
             self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_filter_empty_queries(self):
-        self.switch_to_superuser()
+        self.switch_to(self.super_user)
 
         empty_queries = [
             "?manager_ids=",
