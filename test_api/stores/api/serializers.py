@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from ..models import Store, DAYS_OF_WEEK
+from ..models import Store, DAYS_OF_WEEK, StoreHours
 from users.models import CustomUser
 
 
@@ -29,8 +29,31 @@ class BaseSerializerMixin:
             )
         return data
 
+    def get_days_of_operation(self, obj):
+        return obj.days_open
 
-class StoreSerializer(serializers.ModelSerializer, BaseSerializerMixin):
+    def get_owner_name(self, obj):
+        return str(obj.owner)
+
+    def get_manager_names(self, obj):
+        return [str(mng) for mng in obj.manager_ids.all()]
+
+
+class ManagerUpdateMixin:
+    def update(self, instance, validated_data):
+        managers_data = validated_data.pop("manager_ids", [])
+        old_managers = [mng.id for mng in instance.manager_ids.all()]
+        add_managers = [mng.id for mng in managers_data if mng.id not in old_managers]
+        remove_managers = [mng.id for mng in managers_data if mng.id in old_managers]
+        instance = super().update(instance, validated_data)
+        instance.manager_ids.add(*add_managers)
+        instance.manager_ids.remove(*remove_managers)
+        return instance
+
+
+class StoreSerializer(
+    serializers.ModelSerializer, BaseSerializerMixin, ManagerUpdateMixin
+):
     days_of_operation = serializers.SerializerMethodField()
     owner_name = serializers.SerializerMethodField()
     owner = serializers.PrimaryKeyRelatedField(
@@ -59,11 +82,10 @@ class StoreSerializer(serializers.ModelSerializer, BaseSerializerMixin):
 
     class Meta:
         model = Store
-        raise_unknown_fields = True
         include = ["days_of_operation"]
         fields = "__all__"
         write_only_fields = [
-            "manger_ids",
+            "manager_ids",
             "montag",
             "dienstag",
             "mittwoch",
@@ -72,25 +94,6 @@ class StoreSerializer(serializers.ModelSerializer, BaseSerializerMixin):
             "samstag",
             "sonntag",
         ]
-
-    def get_days_of_operation(self, obj):
-        return obj.days_open
-
-    def get_owner_name(self, obj):
-        return str(obj.owner)
-
-    def get_manager_names(self, obj):
-        return [str(mng) for mng in obj.manager_ids.all()]
-
-    def update(self, instance, validated_data):
-        managers_data = validated_data.pop("manager_ids", [])
-        old_managers = [mng.id for mng in instance.manager_ids.all()]
-        add_managers = [mng.id for mng in managers_data if mng.id not in old_managers]
-        remove_managers = [mng.id for mng in managers_data if mng.id in old_managers]
-        instance = super().update(instance, validated_data)
-        instance.manager_ids.add(*add_managers)
-        instance.manager_ids.remove(*remove_managers)
-        return instance
 
     def to_internal_value(self, data):
         self._check_unknown_fields(data)
@@ -149,7 +152,6 @@ class DaysSerializer(serializers.ModelSerializer, BaseSerializerMixin):
 
     class Meta:
         model = Store
-        raise_unknown_fields = True
         fields = [
             "id",
             "name",
@@ -164,15 +166,6 @@ class DaysSerializer(serializers.ModelSerializer, BaseSerializerMixin):
             "samstag",
             "sonntag",
         ]
-
-    def get_owner_name(self, obj):
-        return str(obj.owner)
-
-    def get_manager_names(self, obj):
-        return [str(mng) for mng in obj.manager_ids.all()]
-
-    def get_days_of_operation(self, obj):
-        return obj.days_open
 
     def to_internal_value(self, data):
         self._check_unknown_fields(data)
@@ -190,7 +183,6 @@ class HoursSerializer(serializers.ModelSerializer, BaseSerializerMixin):
 
     class Meta:
         model = Store
-        raise_on_validation_error = True
         fields = [
             "id",
             "name",
@@ -201,15 +193,6 @@ class HoursSerializer(serializers.ModelSerializer, BaseSerializerMixin):
             "closing_time",
         ]
 
-    def get_owner_name(self, obj):
-        return str(obj.owner)
-
-    def get_manager_names(self, obj):
-        return [str(mng) for mng in obj.manager_ids.all()]
-
-    def get_days_of_operation(self, obj):
-        return obj.days_open
-
     def validate(self, data):
         data = self._valid_hours(data)
         return super().validate(data)
@@ -219,7 +202,9 @@ class HoursSerializer(serializers.ModelSerializer, BaseSerializerMixin):
         return super().to_internal_value(data)
 
 
-class ManagersSerializer(serializers.ModelSerializer, BaseSerializerMixin):
+class ManagersSerializer(
+    serializers.ModelSerializer, BaseSerializerMixin, ManagerUpdateMixin
+):
     id = serializers.IntegerField(read_only=True, required=False)
     name = serializers.CharField(read_only=True, required=False)
     owner_name = serializers.SerializerMethodField()
@@ -239,27 +224,47 @@ class ManagersSerializer(serializers.ModelSerializer, BaseSerializerMixin):
             "manager_ids",
             "days_of_operation",
         ]
-        raise_on_validation_error = True
-
-    def get_owner_name(self, obj):
-        return str(obj.owner)
-
-    def get_manager_names(self, obj):
-        return [str(mng) for mng in obj.manager_ids.all()]
-
-    def get_days_of_operation(self, obj):
-        return obj.days_open
-
-    def update(self, instance, validated_data):
-        managers_data = validated_data.pop("manager_ids", [])
-        old_managers = [mng.id for mng in instance.manager_ids.all()]
-        add_managers = [mng.id for mng in managers_data if mng.id not in old_managers]
-        remove_managers = [mng.id for mng in managers_data if mng.id in old_managers]
-        instance = super().update(instance, validated_data)
-        instance.manager_ids.add(*add_managers)
-        instance.manager_ids.remove(*remove_managers)
-        return instance
 
     def to_internal_value(self, data):
         self._check_unknown_fields(data)
         return super().to_internal_value(data)
+
+
+class StoreHoursSerializer(serializers.ModelSerializer, BaseSerializerMixin):
+    day_display = serializers.CharField(source="get_day_display", read_only=True)
+    store_name = serializers.CharField(source="store.name", read_only=True)
+
+    class Meta:
+        model = StoreHours
+        fields = [
+            "id",
+            "store",
+            "store_name",
+            "day",
+            "day_display",
+            "opening_time",
+            "closing_time",
+        ]
+
+    def to_internal_value(self, data):
+        self._check_unknown_fields(data)
+        return super().to_internal_value(data)
+
+    def validate(self, data):
+        data = self._valid_hours(data)
+        day = data.get("day")
+        if day not in StoreHours.DAYS_OF_WEEK_DICT.items():
+            raise serializers.ValidationError(
+                f"Day must be one of {StoreHours.DAYS_OF_WEEK_DICT.items()}"
+            )
+        return super().validate(data)
+
+    def update(self, instance, validated_data):
+        day = validated_data.get("day")
+        if day and day != instance.day:
+            raise serializers.ValidationError(
+                f"Cannot change the day. This method only updates the hours of operation on {day}"
+            )
+        instance = super().update(instance, validated_data)
+
+        return instance

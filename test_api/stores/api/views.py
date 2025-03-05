@@ -83,7 +83,7 @@ class ValidationMixin:
 class StoreViewSet(ValidationMixin, ModelViewSet):
     serializer_class = StoreSerializer
     permission_classes = [IsAuthenticated]
-    authentication_classes = [TokenAuthentication, SessionAuthentication]
+    authentication_classes = [TokenAuthentication]  # , SessionAuthentication]
     pagination_class = StoreViewsPagination
     filterset_class = StoreFilter
     http_method_names = ["get", "post", "put", "patch", "delete"]

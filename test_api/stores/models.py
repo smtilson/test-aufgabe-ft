@@ -1,6 +1,6 @@
 from django.db import models
 from users.models import CustomUser
-
+from django.core.exceptions import ValidationError
 
 # Create your models here.
 
@@ -72,3 +72,27 @@ class Store(models.Model):
     @property
     def days_open(self):
         return str([day.capitalize() for day in DAYS_OF_WEEK if getattr(self, day)])
+
+
+class StoreHours(models.Model):
+    DAYS_OF_WEEK_DICT = {
+        0: "Monday",
+        1: "Tuesday",
+        2: "Wednesday",
+        3: "Thursday",
+        4: "Friday",
+        5: "Saturday",
+        6: "Sunday",
+    }
+    DAYS_OF_WEEK = [(key, value) for key, value in DAYS_OF_WEEK_DICT.items()]
+    store = models.ForeignKey(Store, on_delete=models.CASCADE, related_name="hours")
+    day = models.IntegerField(choices=DAYS_OF_WEEK)
+    opening_time = models.TimeField(default="07:00:00")
+    closing_time = models.TimeField(default="17:00:00")
+
+    class Meta:
+        ordering = ["store", "day"]
+        unique_together = ["store", "day"]
+
+    def __str__(self):
+        return f"{self.store.name} - {self.DAYS_OF_WEEK[self.day]}: {self.opening_time} - {self.closing_time}"
