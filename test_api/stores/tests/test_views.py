@@ -86,7 +86,7 @@ class StoreViewSetTestCase(APIBaseTestCase):
         new_store_data["opening_time"] = "08:00:02"
         new_store_data["closing_time"] = "19:00:01"
         new_store_data["plz"] = "12115"
-        new_store_data["owner_id"] = self.owner1.id
+        new_store_data["owner"] = self.owner1.id
         new_store_data["manager_ids"] = [self.manager1.id]
 
         # Test owner can create store
@@ -98,11 +98,11 @@ class StoreViewSetTestCase(APIBaseTestCase):
         # Verify store data
         created_store = Store.objects.get(id=response.data["id"])
         for key, value in new_store_data.items():
-            if key in {"manager_ids", "owner_id", "closing_time", "opening_time"}:
+            if key in {"manager_ids", "owner", "closing_time", "opening_time"}:
                 continue
             self.assertEqual(getattr(created_store, key), value)
         self.assertIn(self.manager1, created_store.manager_ids.all())
-        self.assertEqual(created_store.owner_id, self.owner1)
+        self.assertEqual(created_store.owner, self.owner1)
         self.assertEqual(
             str(created_store.closing_time), new_store_data["closing_time"]
         )
@@ -116,7 +116,7 @@ class StoreViewSetTestCase(APIBaseTestCase):
             "name": "",  # empty name
             "address": "456 Side St",
             "city": "New City",
-            "owner_id": 12,
+            "owner": 12,
             "state_abbrv": "XX",  # invalid state
             "plz": "123",  # too short
             "opening_time": "25:00:00",  # invalid time
@@ -127,11 +127,10 @@ class StoreViewSetTestCase(APIBaseTestCase):
         count = Store.objects.count()
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(Store.objects.count(), count)  # no new store created
-        print(response.data)
         for term in {
             "state_abbrv",
             "invalid",
-            "owner_id",
+            "owner",
             "manager_ids",
             "plz",
             "opening_time",
@@ -146,15 +145,13 @@ class StoreViewSetTestCase(APIBaseTestCase):
             {
                 "opening_time": "09:00:00",
                 "closing_time": "08:00:00",  # Earlier than opening
-                "owner_id": self.owner1.id,
+                "owner": self.owner1.id,
             }
         )
-        print(store_data)
         response = self.client.post(self.url_list, store_data)
         count = Store.objects.count()
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(Store.objects.count(), count)
-        print(response.data)
         for term in {"error", "invalid", "closing time"}:
             self.assertIn(term, str(response.data).lower())
 
@@ -164,8 +161,7 @@ class StoreViewSetTestCase(APIBaseTestCase):
         count = Store.objects.count()
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(Store.objects.count(), count)
-        print(response.data)
-        for term in {"required", "state", "owner_id", "address"}:
+        for term in {"required", "state", "owner", "address"}:
             self.assertIn(term, str(response.data).lower())
 
     # Retrieve Tests
@@ -220,7 +216,6 @@ class StoreViewSetTestCase(APIBaseTestCase):
         # Verify error messages
         terms = list(update_data.keys())
         terms.extend(["error", "invalid", "does not exist"])
-        print(response.data)
         for term in terms:
             self.assertIn(term, str(response.data).lower())
 
@@ -342,21 +337,18 @@ class StoreViewSetTestCase(APIBaseTestCase):
         # self.switch_to(self.owner1)
         old = Store.objects.count()
         store = self.client.get(self.url_detail).data
-        owner = User.objects.get(id=store["owner_id"])
+        owner = User.objects.get(id=store["owner"])
         self.switch_to(owner)
-        # print()
-        # print(store)
-        # print()
         response = self.client.delete(self.url_detail)
         self.assertEqual(Store.objects.count(), old - 1)
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertFalse(Store.objects.filter(id=self.store1.id).exists())
 
-    @skip
     def test_delete_store_wo_permission(self):
-        self.switch_to(self.user)
+        self.switch_to(self.owner2)
         response = self.client.delete(self.url_detail)
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        # It is not a 403 because the user is blocked at the query set stage of processing the request
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_delete_nonexistent_store(self):
         url = reverse("stores-detail", args=[999])
@@ -479,7 +471,6 @@ class StoreViewSetTestCase(APIBaseTestCase):
             self.assertEqual(response.status_code, status.HTTP_200_OK)
 
 
-@skip
 class StoreDaysViewTests(APIBaseTestCase):
     def setUp(self):
         super().setUp()
@@ -712,7 +703,6 @@ class StoreDaysViewTests(APIBaseTestCase):
             self.assertIn("Invalid query parameter", str(response.data))
 
 
-@skip
 class StoreHoursViewTests(APIBaseTestCase):
     def setUp(self):
         super().setUp()
@@ -996,7 +986,6 @@ class StoreHoursViewTests(APIBaseTestCase):
             self.assertEqual(response.status_code, expected_status)
 
 
-@skip
 class StoreManagersViewTests(APIBaseTestCase):
     def setUp(self):
         super().setUp()
@@ -1108,7 +1097,7 @@ class StoreManagersViewTests(APIBaseTestCase):
 
         # Create test stores owned by superuser
         test_store1 = Store.objects.create(
-            owner_id=self.super_user,
+            owner=self.super_user,
             name="Test Store 1",
             address="123 Test St",
             city="Test City",
@@ -1117,7 +1106,7 @@ class StoreManagersViewTests(APIBaseTestCase):
         )
 
         test_store2 = Store.objects.create(
-            owner_id=self.super_user,
+            owner=self.super_user,
             name="Test Store 2",
             address="456 Test St",
             city="Test City",
@@ -1174,7 +1163,7 @@ class StoreManagersViewTests(APIBaseTestCase):
 
         # Create stores owned by superuser
         test_store1 = Store.objects.create(
-            owner_id=self.super_user,
+            owner=self.super_user,
             name="Test Store 1",
             address="123 Test St",
             city="Test City",
@@ -1183,7 +1172,7 @@ class StoreManagersViewTests(APIBaseTestCase):
         )
 
         test_store2 = Store.objects.create(
-            owner_id=self.super_user,
+            owner=self.super_user,
             name="Test Store 2",
             address="456 Test St",
             city="Test City",

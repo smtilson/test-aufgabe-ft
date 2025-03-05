@@ -49,7 +49,7 @@ class StoreBaseTestCase(TestCase, AbstractBaseTestCase):
     def _create_base_store(self):
         """Create the primary test store"""
         self.store = Store.objects.create(
-            owner_id=self.owner1, **STORE1_DATA, **self.initial_days, **self.times
+            owner=self.owner1, **STORE1_DATA, **self.initial_days, **self.times
         )
 
 
@@ -95,13 +95,13 @@ class APIBaseTestCase(APITestCase, AbstractBaseTestCase):
     def _create_multiple_stores(self):
         """Create the multiple stores needed for API tests"""
         self.store1 = Store.objects.create(
-            owner_id=self.owner1, **STORE1_DATA, **self.initial_days, **self.times
+            owner=self.owner1, **STORE1_DATA, **self.initial_days, **self.times
         )
         self.store2 = Store.objects.create(
-            owner_id=self.owner1, **STORE2_DATA, **self.initial_days, **self.times
+            owner=self.owner1, **STORE2_DATA, **self.initial_days, **self.times
         )
         self.store3 = Store.objects.create(
-            owner_id=self.owner2, **STORE3_DATA, **self.initial_days, **self.times
+            owner=self.owner2, **STORE3_DATA, **self.initial_days, **self.times
         )
 
     def _setup_authentication(self):

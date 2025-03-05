@@ -50,7 +50,7 @@ class ValidationMixin:
         "address",
         "city",
         "state_abbrv",
-        "owner_id",
+        "owner",
     ]  # Uses "state" instead of "state_abbrv"
 
     def _validate_required_fields(self, request, required_fields):
@@ -106,18 +106,9 @@ class StoreViewSet(ValidationMixin, ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         user = request.user
         store = self.get_object()
-        print(user.is_superuser)
-        print(user.id)
-        print(store.owner_id)
-        if user.is_superuser or user.id == store.owner_id:
-            response = super().destroy(request, *args, **kwargs)
-            print(f"Store deleted: {store.name}")
-            print(response.status_code)
-            return response
-        else:
-            return Response(
-                {"error": "You do not have permissions to delete this store."}
-            )
+        if user.is_superuser or user.id == store.owner.id:
+            return super().destroy(request, *args, **kwargs)
+        # Note that if a user is not a superuser or the owner of the store then they will have already received a 404 error.
 
 
 class StoreDaysView(ValidationMixin, List, Retrieve, Update, GenericAPIView):
@@ -195,7 +186,7 @@ class StoreManagersView(ValidationMixin, List, Retrieve, Update, GenericAPIView)
 
     # Only the owner of a store can edit the managers of that store
     def get_queryset(self):
-        return Store.objects.filter(Q(owner_id=self.request.user))
+        return Store.objects.filter(Q(owner=self.request.user))
 
     def get(self, request, *args, **kwargs):
         pk = kwargs.get("pk", None)
@@ -220,7 +211,7 @@ class StoreManagersView(ValidationMixin, List, Retrieve, Update, GenericAPIView)
 def get_user_stores(user):
     if user.is_superuser:
         return Store.objects.all()
-    return Store.objects.filter(Q(manager_ids__in=[user]) | Q(owner_id=user)).distinct()
+    return Store.objects.filter(Q(manager_ids__in=[user]) | Q(owner=user)).distinct()
 
 
 def is_list_view(request):

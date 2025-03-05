@@ -27,7 +27,7 @@ class StoreSerializerTest(StoreBaseTestCase):
     def test_create_store_via_serializer(self):
         new_store_data = {
             "name": "New Store",
-            "owner_id": self.owner1.id,
+            "owner": self.owner1.id,
             "address": "456 Side St",
             "city": "New City",
             "state_abbrv": "HH",
@@ -41,11 +41,11 @@ class StoreSerializerTest(StoreBaseTestCase):
         store = serializer.save()
 
         for key in new_store_data:
-            if key in {"owner_id", "manager_ids", "opening_time", "closing_time"}:
+            if key in {"owner", "manager_ids", "opening_time", "closing_time"}:
                 continue
             value = getattr(store, key)
             self.assertEqual(value, new_store_data[key])
-        self.assertEqual(store.owner_id, self.owner1)
+        self.assertEqual(store.owner, self.owner1)
         self.assertIn(self.manager1, store.manager_ids.all())
         self.assertEqual(store.opening_time, time(8, 0))
         self.assertEqual(store.closing_time, time(18, 0))
@@ -61,10 +61,10 @@ class StoreSerializerTest(StoreBaseTestCase):
         )
 
     def test_owner_field(self):
-        self.assertEqual(self.serializer.data["owner"], str(self.owner1))
+        self.assertEqual(self.serializer.data["owner_name"], str(self.owner1))
 
     def test_managers_field(self):
-        self.assertEqual(self.serializer.data["managers"], [str(self.manager1)])
+        self.assertEqual(self.serializer.data["manager_names"], [str(self.manager1)])
 
     # Deserialization Tests
     def test_deserialize_store(self):
@@ -93,8 +93,8 @@ class StoreSerializerTest(StoreBaseTestCase):
         expected_fields = {
             "id",
             "name",
+            "owner_name",
             "owner",
-            "owner_id",
             "address",
             "city",
             "state_abbrv",
@@ -105,7 +105,7 @@ class StoreSerializerTest(StoreBaseTestCase):
             "updated_at",
             "created_at",
             "manager_ids",
-            "managers",
+            "manager_names",
             "montag",
             "dienstag",
             "mittwoch",
@@ -128,7 +128,7 @@ class StoreSerializerTest(StoreBaseTestCase):
             "montag": "not_boolean",  # must be boolean
             "dienstag": 1234,  # must be boolean
             "manager_ids": "not_a_list",  # must be list of ids
-            "owner_id": "not_an_id",  # must be integer
+            "owner": "not_an_id",  # must be integer
         }
 
         serializer = StoreSerializer(data=invalid_data)
@@ -297,13 +297,13 @@ class StoreSerializerTest(StoreBaseTestCase):
             first_name="New",
             last_name="Owner",
         )
-        update_data = {"owner_id": new_owner.id}
+        update_data = {"owner": new_owner.id}
         serializer = StoreSerializer(
             instance=self.store, data=update_data, partial=True
         )
         self.assertTrue(serializer.is_valid())
         updated_store = serializer.save()
-        self.assertEqual(updated_store.owner_id, new_owner)
+        self.assertEqual(updated_store.owner, new_owner)
 
     def test_unknown_fields(self):
         invalid_data = {"not_a_field": 123, "invalid_field": False}
@@ -357,8 +357,8 @@ class DaysSerializerTest(StoreBaseTestCase):
         expected_fields = {
             "id",
             "name",
-            "owner",
-            "managers",
+            "owner_name",
+            "manager_names",
             "days_of_operation",
             "montag",
             "dienstag",
@@ -468,8 +468,8 @@ class HoursSerializerTest(StoreBaseTestCase):
         expected_fields = {
             "id",
             "name",
-            "owner",
-            "managers",
+            "owner_name",
+            "manager_names",
             "opening_time",
             "closing_time",
             "days_of_operation",
@@ -523,8 +523,8 @@ class ManagersSerializerTest(StoreBaseTestCase):
         expected_fields = {
             "id",
             "name",
-            "owner",
-            "managers",
+            "owner_name",
+            "manager_names",
             "manager_ids",
             "days_of_operation",
         }

@@ -36,7 +36,7 @@ class Store(models.Model):
     }
 
     name = models.CharField(max_length=255)
-    owner_id = models.ForeignKey(
+    owner = models.ForeignKey(
         CustomUser, on_delete=models.CASCADE, related_name="owned_stores"
     )
     manager_ids = models.ManyToManyField(

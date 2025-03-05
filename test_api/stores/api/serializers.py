@@ -32,11 +32,11 @@ class BaseSerializerMixin:
 
 class StoreSerializer(serializers.ModelSerializer, BaseSerializerMixin):
     days_of_operation = serializers.SerializerMethodField()
-    owner = serializers.SerializerMethodField()
-    owner_id = serializers.PrimaryKeyRelatedField(
+    owner_name = serializers.SerializerMethodField()
+    owner = serializers.PrimaryKeyRelatedField(
         queryset=CustomUser.objects.all(), required=False
     )
-    managers = serializers.SerializerMethodField()
+    manager_names = serializers.SerializerMethodField()
     name = serializers.CharField(required=False, allow_blank=False)
     address = serializers.CharField(required=False, allow_blank=False)
     city = serializers.CharField(required=False, allow_blank=False)
@@ -76,10 +76,10 @@ class StoreSerializer(serializers.ModelSerializer, BaseSerializerMixin):
     def get_days_of_operation(self, obj):
         return obj.days_open
 
-    def get_owner(self, obj):
-        return str(obj.owner_id)
+    def get_owner_name(self, obj):
+        return str(obj.owner)
 
-    def get_managers(self, obj):
+    def get_manager_names(self, obj):
         return [str(mng) for mng in obj.manager_ids.all()]
 
     def update(self, instance, validated_data):
@@ -136,8 +136,8 @@ class StoreSerializer(serializers.ModelSerializer, BaseSerializerMixin):
 class DaysSerializer(serializers.ModelSerializer, BaseSerializerMixin):
     id = serializers.IntegerField(read_only=True, required=False)
     name = serializers.CharField(read_only=True, required=False)
-    owner = serializers.SerializerMethodField(required=False)
-    managers = serializers.SerializerMethodField(required=False)
+    owner_name = serializers.SerializerMethodField(required=False)
+    manager_names = serializers.SerializerMethodField(required=False)
     days_of_operation = serializers.SerializerMethodField(required=False)
     montag = serializers.BooleanField(required=False)
     dienstag = serializers.BooleanField(required=False)
@@ -153,8 +153,8 @@ class DaysSerializer(serializers.ModelSerializer, BaseSerializerMixin):
         fields = [
             "id",
             "name",
-            "owner",
-            "managers",
+            "owner_name",
+            "manager_names",
             "days_of_operation",
             "montag",
             "dienstag",
@@ -165,10 +165,10 @@ class DaysSerializer(serializers.ModelSerializer, BaseSerializerMixin):
             "sonntag",
         ]
 
-    def get_owner(self, obj):
-        return str(obj.owner_id)
+    def get_owner_name(self, obj):
+        return str(obj.owner)
 
-    def get_managers(self, obj):
+    def get_manager_names(self, obj):
         return [str(mng) for mng in obj.manager_ids.all()]
 
     def get_days_of_operation(self, obj):
@@ -182,8 +182,8 @@ class DaysSerializer(serializers.ModelSerializer, BaseSerializerMixin):
 class HoursSerializer(serializers.ModelSerializer, BaseSerializerMixin):
     id = serializers.IntegerField(read_only=True, required=False)
     name = serializers.CharField(read_only=True, required=False)
-    owner = serializers.SerializerMethodField()
-    managers = serializers.SerializerMethodField()
+    owner_name = serializers.SerializerMethodField()
+    manager_names = serializers.SerializerMethodField()
     days_of_operation = serializers.SerializerMethodField()
     opening_time = serializers.TimeField(required=False)
     closing_time = serializers.TimeField(required=False)
@@ -194,17 +194,17 @@ class HoursSerializer(serializers.ModelSerializer, BaseSerializerMixin):
         fields = [
             "id",
             "name",
-            "owner",
-            "managers",
+            "owner_name",
+            "manager_names",
             "days_of_operation",
             "opening_time",
             "closing_time",
         ]
 
-    def get_owner(self, obj):
-        return str(obj.owner_id)
+    def get_owner_name(self, obj):
+        return str(obj.owner)
 
-    def get_managers(self, obj):
+    def get_manager_names(self, obj):
         return [str(mng) for mng in obj.manager_ids.all()]
 
     def get_days_of_operation(self, obj):
@@ -222,8 +222,8 @@ class HoursSerializer(serializers.ModelSerializer, BaseSerializerMixin):
 class ManagersSerializer(serializers.ModelSerializer, BaseSerializerMixin):
     id = serializers.IntegerField(read_only=True, required=False)
     name = serializers.CharField(read_only=True, required=False)
-    owner = serializers.SerializerMethodField()
-    managers = serializers.SerializerMethodField()
+    owner_name = serializers.SerializerMethodField()
+    manager_names = serializers.SerializerMethodField()
     days_of_operation = serializers.SerializerMethodField()
     manager_ids = serializers.PrimaryKeyRelatedField(
         queryset=CustomUser.objects.all(), many=True, required=False
@@ -234,17 +234,17 @@ class ManagersSerializer(serializers.ModelSerializer, BaseSerializerMixin):
         fields = [
             "id",
             "name",
-            "owner",
-            "managers",
+            "owner_name",
+            "manager_names",
             "manager_ids",
             "days_of_operation",
         ]
         raise_on_validation_error = True
 
-    def get_owner(self, obj):
-        return str(obj.owner_id)
+    def get_owner_name(self, obj):
+        return str(obj.owner)
 
-    def get_managers(self, obj):
+    def get_manager_names(self, obj):
         return [str(mng) for mng in obj.manager_ids.all()]
 
     def get_days_of_operation(self, obj):

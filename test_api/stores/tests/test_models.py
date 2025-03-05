@@ -12,15 +12,10 @@ User = get_user_model()
 
 class StoreModelTest(StoreBaseTestCase):
 
-    def setUp(self):
-        super().setUp()
-        self.owner = self.owner1
-        self.manager = self.manager1
-
     # Creation Tests
     def test_store_creation(self):
         store = Store.objects.create(
-            **STORE2_DATA, owner_id=self.owner, **self.initial_days, **self.times
+            **STORE2_DATA, owner=self.owner1, **self.initial_days, **self.times
         )
 
         store.refresh_from_db()
@@ -30,7 +25,7 @@ class StoreModelTest(StoreBaseTestCase):
         self.assertEqual(store.city, "Test City1")
         self.assertEqual(store.state_abbrv, "BE")
         self.assertEqual(store.plz, "12345")
-        self.assertEqual(store.owner_id, self.owner)
+        self.assertEqual(store.owner, self.owner1)
         self.assertEqual(store.manager_ids.first(), None)
         self.assertEqual(store.opening_time, time(7, 0))
         self.assertEqual(store.closing_time, time(17, 0))
@@ -53,7 +48,7 @@ class StoreModelTest(StoreBaseTestCase):
         with self.assertRaises(ValidationError) as e:
             invalid_store = Store(
                 name="Invalid Store",
-                owner_id=self.owner,
+                owner=self.owner1,
                 address="Test Street 1",
                 city="Test City",
                 state_abbrv="XX",  # Invalid state
@@ -71,7 +66,7 @@ class StoreModelTest(StoreBaseTestCase):
         with self.assertRaises(ValidationError) as e:
             invalid_store = Store(
                 name="",  # Empty name
-                owner_id=self.owner,
+                owner=self.owner1,
                 address="",  # Empty address
                 city="",  # Empty city
                 state_abbrv="BE",
@@ -96,7 +91,7 @@ class StoreModelTest(StoreBaseTestCase):
 
         # Update fields, testing one of each type
         self.store.name = "Completely Updated Store"  # CharField
-        self.store.owner_id = new_owner  # ForeignKey
+        self.store.owner = new_owner  # ForeignKey
         self.store.state_abbrv = "HH"  # CharField with choices
         self.store.montag = True  # BooleanField
         self.store.opening_time = time(8, 30)  # TimeField
@@ -106,7 +101,7 @@ class StoreModelTest(StoreBaseTestCase):
 
         # Verify updates by field type
         self.assertEqual(updated_store.name, "Completely Updated Store")
-        self.assertEqual(updated_store.owner_id, new_owner)
+        self.assertEqual(updated_store.owner, new_owner)
         self.assertEqual(updated_store.state_abbrv, "HH")
         self.assertTrue(updated_store.montag)
         self.assertEqual(updated_store.opening_time, time(8, 30))
@@ -116,7 +111,7 @@ class StoreModelTest(StoreBaseTestCase):
 
         # Test one field of each type
         self.assertEqual(stored_store.name, self.store.name)  # CharField
-        self.assertEqual(stored_store.owner_id, self.owner)  # ForeignKey
+        self.assertEqual(stored_store.owner, self.owner1)  # ForeignKey
         self.assertEqual(stored_store.state_abbrv, "BE")  # CharField with choices
         self.assertTrue(stored_store.montag)  # BooleanField
         self.assertEqual(stored_store.opening_time, time(7, 0))  # TimeField
@@ -137,7 +132,7 @@ class StoreModelTest(StoreBaseTestCase):
         old = self.store.manager_ids.count()
         self.store.manager_ids.add(manager2, manager3)
         self.assertEqual(self.store.manager_ids.count(), old + 2)
-        self.assertIn(self.manager, self.store.manager_ids.all())
+        self.assertIn(self.manager1, self.store.manager_ids.all())
         self.assertIn(manager2, self.store.manager_ids.all())
         self.assertIn(manager3, self.store.manager_ids.all())
 
@@ -156,6 +151,6 @@ class StoreModelTest(StoreBaseTestCase):
     # Cascade deletion tests
     def test_owner_cascade_delete(self):
         store_id = self.store.id
-        self.owner.delete()
+        self.owner1.delete()
         # Store should be deleted when owner is deleted due to CASCADE
         self.assertFalse(Store.objects.filter(id=store_id).exists())
